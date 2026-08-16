@@ -26,7 +26,6 @@ export default async function BuyPage() {
           publicId: true,
           name: true,
           sellingPrice: true,
-          validityDays: true,
           dataAmount: true,
         },
       },

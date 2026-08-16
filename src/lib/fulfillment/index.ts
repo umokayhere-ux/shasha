@@ -1,36 +1,30 @@
-import { FulfillmentStatus, OrderStatus, PaymentStatus } from "@prisma/client";
+import { FulfillmentStatus, OrderStatus, PaymentStatus, Role } from "@prisma/client";
 import { prisma } from "../db";
 import { notify } from "../services/notifications";
-import { MockDataProvider } from "./mock-provider";
-import type { DataProvider } from "./provider";
-
-const MAX_RETRIES = 3;
-const LOCK_TIMEOUT_MS = 5 * 60 * 1000;
-
-let dataProvider: DataProvider | null = null;
-
-export function getDataProvider(): DataProvider {
-  if (!dataProvider) {
-    // Swap here once real provider credentials are available.
-    dataProvider = new MockDataProvider();
-  }
-  return dataProvider;
-}
-
-export function setDataProvider(provider: DataProvider): void {
-  dataProvider = provider;
-}
+import { formatMoney } from "../money";
 
 /**
- * Creates the single fulfillment record for a paid order. Safe to call from
- * every webhook redelivery and from the verify endpoint: the unique constraint
- * on orderId/idempotencyKey collapses concurrent callers to one record.
+ * Manual fulfillment.
+ *
+ * Bundles are bought by the operator from their own data plug, not through an
+ * automated provider API. So a paid order is queued for a human, the admins are
+ * notified, and an admin marks it delivered or failed afterwards.
+ *
+ * Payment status stays separate throughout: a delivery that fails never
+ * un-pays a verified payment.
+ */
+
+/**
+ * Creates the single fulfillment record for a paid order and alerts the admins.
+ * Safe to call from every webhook redelivery — the unique constraint on
+ * orderId collapses concurrent callers to one record, so the operator is
+ * never told to deliver the same order twice.
  */
 export async function enqueueFulfillment(orderId: string): Promise<string | null> {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return null;
 
-  // Hard gate: data is never delivered before a verified payment.
+  // Hard gate: nothing is queued for delivery before a verified payment.
   if (order.paymentStatus !== PaymentStatus.PAID) {
     console.warn("[fulfillment] refusing to queue unpaid order %s", orderId);
     return null;
@@ -44,203 +38,153 @@ export async function enqueueFulfillment(orderId: string): Promise<string | null
       data: {
         orderId,
         idempotencyKey: `fulfil_${order.reference}`,
-        status: FulfillmentStatus.QUEUED,
-        provider: getDataProvider().name,
+        status: FulfillmentStatus.PENDING,
+        provider: "manual",
       },
     });
+
     await prisma.order.update({
       where: { id: orderId },
-      data: { fulfillmentStatus: FulfillmentStatus.QUEUED, status: OrderStatus.PROCESSING },
+      data: { fulfillmentStatus: FulfillmentStatus.PENDING, status: OrderStatus.PROCESSING },
     });
+
+    await notifyAdmins({
+      type: "ORDER_TO_FULFIL",
+      title: "New order to deliver",
+      body: `${order.bundleNameSnapshot} ${order.networkNameSnapshot} to ${order.recipientPhone} — ${formatMoney(order.finalAmount)} paid.`,
+      metadata: { orderId: order.publicId, reference: order.reference },
+    });
+
     return created.id;
   } catch {
-    // Lost a race with a concurrent webhook — the other one created it.
+    // Lost a race with a concurrent webhook — the other call created it.
     const raced = await prisma.fulfillment.findUnique({ where: { orderId } });
     return raced?.id ?? null;
   }
 }
 
-/**
- * Executes one delivery attempt. Claims the record with a conditional update
- * so two workers can never call the data provider for the same order.
- */
-export async function runFulfillment(fulfillmentId: string): Promise<void> {
-  const staleBefore = new Date(Date.now() - LOCK_TIMEOUT_MS);
-
-  const claimed = await prisma.fulfillment.updateMany({
-    where: {
-      id: fulfillmentId,
-      status: { in: [FulfillmentStatus.QUEUED, FulfillmentStatus.PENDING] },
-      OR: [{ lockedAt: null }, { lockedAt: { lt: staleBefore } }],
-    },
-    data: { status: FulfillmentStatus.PROCESSING, lockedAt: new Date() },
-  });
-  if (claimed.count === 0) return; // Already claimed or already terminal.
-
+/** Marks an order delivered after the operator has sent the bundle. */
+export async function markDelivered(publicId: string, adminId: string): Promise<boolean> {
   const fulfillment = await prisma.fulfillment.findUnique({
-    where: { id: fulfillmentId },
-    include: { order: { include: { network: true } } },
+    where: { publicId },
+    include: { order: true },
   });
-  if (!fulfillment) return;
+  if (!fulfillment) return false;
+  if (fulfillment.status === FulfillmentStatus.SUCCESSFUL) return true; // Idempotent.
 
-  const { order } = fulfillment;
-  const provider = getDataProvider();
-
-  try {
-    const result = await provider.purchaseBundle({
-      idempotencyKey: fulfillment.idempotencyKey,
-      recipientPhone: order.recipientPhone,
-      networkSlug: order.network?.slug ?? order.networkNameSnapshot.toLowerCase(),
-      productCode: order.providerCodeSnapshot,
-      dataAmountMb: order.dataAmountSnapshot,
-      amount: order.finalAmount,
-    });
-
-    await prisma.providerTransaction.create({
-      data: {
-        provider: provider.name,
-        orderId: order.id,
-        reference: result.providerReference,
-        request: { idempotencyKey: fulfillment.idempotencyKey, recipient: maskPhone(order.recipientPhone) },
-        response: result.raw as object,
-        success: result.state === "SUCCESSFUL",
-      },
-    });
-
-    const status =
-      result.state === "SUCCESSFUL"
-        ? FulfillmentStatus.SUCCESSFUL
-        : result.state === "PROCESSING"
-          ? FulfillmentStatus.PROCESSING
-          : FulfillmentStatus.FAILED;
-
-    await prisma.fulfillment.update({
+  await prisma.$transaction([
+    prisma.fulfillment.update({
       where: { id: fulfillment.id },
       data: {
-        status,
-        providerReference: result.providerReference,
-        providerResponse: result.raw as object,
-        lastError: result.state === "FAILED" ? result.message : null,
-        lockedAt: null,
-        completedAt: status === FulfillmentStatus.SUCCESSFUL ? new Date() : null,
+        status: FulfillmentStatus.SUCCESSFUL,
+        completedAt: new Date(),
+        lastError: null,
+        providerResponse: { deliveredBy: adminId, deliveredAt: new Date().toISOString() },
       },
-    });
-
-    // Payment status is deliberately untouched here: a delivery failure never
-    // un-pays a verified payment.
-    await prisma.order.update({
-      where: { id: order.id },
+    }),
+    prisma.order.update({
+      where: { id: fulfillment.orderId },
       data: {
-        fulfillmentStatus: status,
-        status:
-          status === FulfillmentStatus.SUCCESSFUL
-            ? OrderStatus.SUCCESSFUL
-            : status === FulfillmentStatus.FAILED
-              ? OrderStatus.FAILED
-              : OrderStatus.PROCESSING,
-        failureReason: status === FulfillmentStatus.FAILED ? result.message : null,
-        completedAt: status === FulfillmentStatus.SUCCESSFUL ? new Date() : null,
+        fulfillmentStatus: FulfillmentStatus.SUCCESSFUL,
+        status: OrderStatus.SUCCESSFUL,
+        failureReason: null,
+        completedAt: new Date(),
       },
-    });
+    }),
+  ]);
 
-    if (status === FulfillmentStatus.SUCCESSFUL) {
-      await notify(order.customerId, {
-        type: "DATA_DELIVERED",
-        title: "Data delivered",
-        body: `${order.bundleNameSnapshot} has been sent to ${order.recipientPhone}.`,
-        metadata: { orderId: order.publicId },
-      });
-    } else if (status === FulfillmentStatus.FAILED) {
-      await notify(order.customerId, {
-        type: "DELIVERY_FAILED",
-        title: "Delivery issue",
-        body: "Your payment was successful, but we could not deliver your data. Our team is on it.",
-        metadata: { orderId: order.publicId },
-      });
-      if (result.retryable) await scheduleRetry(fulfillment.id);
-    }
-  } catch (err) {
-    console.error("[fulfillment] attempt failed", fulfillmentId, err);
-    await prisma.fulfillment.update({
-      where: { id: fulfillment.id },
-      data: {
-        status: FulfillmentStatus.FAILED,
-        lastError: err instanceof Error ? err.message.slice(0, 500) : "Unknown error",
-        lockedAt: null,
-      },
-    });
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { fulfillmentStatus: FulfillmentStatus.FAILED, status: OrderStatus.FAILED },
-    });
-  }
-}
-
-/**
- * Re-queues a failed delivery. Only ever called for faults the provider marked
- * retryable; anything ambiguous is left for an admin to resolve so a customer
- * cannot receive the same bundle twice.
- */
-export async function scheduleRetry(fulfillmentId: string): Promise<boolean> {
-  const fulfillment = await prisma.fulfillment.findUnique({ where: { id: fulfillmentId } });
-  if (!fulfillment || fulfillment.retryCount >= MAX_RETRIES) return false;
-  if (fulfillment.status !== FulfillmentStatus.FAILED) return false;
-
-  // If the provider ever issued a reference, confirm the real state first —
-  // never blind-retry something that may already have been delivered.
-  if (fulfillment.providerReference) {
-    const status = await getDataProvider().getTransactionStatus(fulfillment.providerReference);
-    if (status.state !== "FAILED") return false;
-  }
-
-  await prisma.fulfillment.update({
-    where: { id: fulfillmentId },
-    data: {
-      status: FulfillmentStatus.QUEUED,
-      retryCount: { increment: 1 },
-      lockedAt: null,
-    },
+  await notify(fulfillment.order.customerId, {
+    type: "DATA_DELIVERED",
+    title: "Data delivered",
+    body: `${fulfillment.order.bundleNameSnapshot} has been sent to ${fulfillment.order.recipientPhone}.`,
+    metadata: { orderId: fulfillment.order.publicId },
   });
+
   return true;
 }
 
-/**
- * Re-queues deliveries that were claimed but never finished — an instance that
- * was frozen or killed mid-attempt leaves a stale PROCESSING lock that
- * runFulfillment() will not pick up on its own.
- *
- * Only records with no provider reference are reset: if the provider was
- * already given the request, re-running could double-deliver, so those are left
- * for an admin to resolve.
- */
-export async function recoverStalledFulfillments(): Promise<number> {
-  const staleBefore = new Date(Date.now() - LOCK_TIMEOUT_MS);
-  const { count } = await prisma.fulfillment.updateMany({
-    where: {
-      status: FulfillmentStatus.PROCESSING,
-      lockedAt: { lt: staleBefore },
-      providerReference: null,
-    },
-    data: { status: FulfillmentStatus.QUEUED, lockedAt: null },
+/** Flags a delivery the operator could not complete. Payment is untouched. */
+export async function markFailed(
+  publicId: string,
+  adminId: string,
+  reason: string,
+): Promise<boolean> {
+  const fulfillment = await prisma.fulfillment.findUnique({
+    where: { publicId },
+    include: { order: true },
   });
-  if (count > 0) console.warn("[fulfillment] recovered %d stalled job(s)", count);
-  return count;
+  if (!fulfillment) return false;
+
+  await prisma.$transaction([
+    prisma.fulfillment.update({
+      where: { id: fulfillment.id },
+      data: {
+        status: FulfillmentStatus.FAILED,
+        lastError: reason.slice(0, 300),
+        providerResponse: { failedBy: adminId, failedAt: new Date().toISOString() },
+      },
+    }),
+    prisma.order.update({
+      where: { id: fulfillment.orderId },
+      // paymentStatus is deliberately not touched — the customer did pay.
+      data: {
+        fulfillmentStatus: FulfillmentStatus.FAILED,
+        status: OrderStatus.FAILED,
+        failureReason: reason.slice(0, 300),
+      },
+    }),
+  ]);
+
+  await notify(fulfillment.order.customerId, {
+    type: "DELIVERY_FAILED",
+    title: "Delivery issue",
+    body: "Your payment was successful, but we could not deliver your data. Our team will contact you.",
+    metadata: { orderId: fulfillment.order.publicId },
+  });
+
+  return true;
 }
 
-/** Drains queued work. Invoke from a worker process or a scheduled job. */
-export async function processQueue(limit = 20): Promise<number> {
-  const pending = await prisma.fulfillment.findMany({
-    where: { status: { in: [FulfillmentStatus.QUEUED, FulfillmentStatus.PENDING] } },
-    orderBy: { createdAt: "asc" },
-    take: limit,
+/** Returns a delivery to the queue after a failure, so it can be retried by hand. */
+export async function requeue(publicId: string): Promise<boolean> {
+  const fulfillment = await prisma.fulfillment.findUnique({ where: { publicId } });
+  if (!fulfillment || fulfillment.status === FulfillmentStatus.SUCCESSFUL) return false;
+
+  await prisma.$transaction([
+    prisma.fulfillment.update({
+      where: { id: fulfillment.id },
+      data: {
+        status: FulfillmentStatus.PENDING,
+        retryCount: { increment: 1 },
+        lastError: null,
+      },
+    }),
+    prisma.order.update({
+      where: { id: fulfillment.orderId },
+      data: {
+        fulfillmentStatus: FulfillmentStatus.PENDING,
+        status: OrderStatus.PROCESSING,
+        failureReason: null,
+      },
+    }),
+  ]);
+  return true;
+}
+
+/** Fans a notification out to every admin account. */
+export async function notifyAdmins(input: {
+  type: string;
+  title: string;
+  body: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { role: { in: [Role.SUPER_ADMIN, Role.STAFF] } },
     select: { id: true },
   });
-  for (const item of pending) await runFulfillment(item.id);
-  return pending.length;
+  await Promise.all(admins.map((admin) => notify(admin.id, input)));
 }
 
-function maskPhone(phone: string): string {
-  return phone.length <= 4 ? "****" : `${"*".repeat(phone.length - 4)}${phone.slice(-4)}`;
+export async function pendingCount(): Promise<number> {
+  return prisma.fulfillment.count({ where: { status: FulfillmentStatus.PENDING } });
 }
-
-export * from "./provider";

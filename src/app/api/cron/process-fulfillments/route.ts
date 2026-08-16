@@ -1,5 +1,4 @@
 import { timingSafeEqual } from "node:crypto";
-import { processQueue, recoverStalledFulfillments } from "@/lib/fulfillment";
 import { pruneRateLimits } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -8,12 +7,10 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Safety net for delivery.
+ * Housekeeping.
  *
- * `after()` already runs the delivery attempt inline, so this is not the primary
- * path — it exists to catch jobs whose invocation died, deliveries that returned
- * PROCESSING, and retryable failures. Vercel Cron calls it on a schedule
- * (see vercel.json).
+ * Deliveries are fulfilled by hand from the admin, so nothing is processed
+ * here; this only prunes expired rate-limit windows.
  *
  * Vercel Cron sends `Authorization: Bearer $CRON_SECRET`. Without CRON_SECRET
  * set, the route refuses to run rather than exposing an open trigger.
@@ -34,10 +31,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    const recovered = await recoverStalledFulfillments();
-    const processed = await processQueue(25);
+    // Delivery is manual, so there is no queue to drain here — this only
+    // clears expired rate-limit windows.
     const pruned = await pruneRateLimits();
-    return Response.json({ ok: true, recovered, processed, pruned });
+    return Response.json({ ok: true, pruned });
   } catch (err) {
     console.error("[cron] run failed", err);
     return Response.json({ ok: false, error: "Run failed" }, { status: 500 });

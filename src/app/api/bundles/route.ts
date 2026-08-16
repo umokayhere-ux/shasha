@@ -25,7 +25,6 @@ export const GET = handler(async (req: Request) => {
       dataAmount: true,
       dataUnit: true,
       sellingPrice: true,
-      validityDays: true,
       description: true,
       isFeatured: true,
       network: { select: { publicId: true, name: true, slug: true } },

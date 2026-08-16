@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -14,7 +15,7 @@ export default async function AdminDashboard() {
       prisma.user.count({ where: { role: "CUSTOMER", ...NOT_DELETED } }),
       prisma.order.count(),
       prisma.order.count({ where: { createdAt: { gte: today } } }),
-      prisma.fulfillment.count({ where: { status: { in: ["QUEUED", "PENDING", "PROCESSING"] } } }),
+      prisma.fulfillment.count({ where: { status: "PENDING" } }),
       prisma.fulfillment.count({ where: { status: "FAILED" } }),
       prisma.order.aggregate({
         where: { paymentStatus: "PAID" },
@@ -51,9 +52,24 @@ export default async function AdminDashboard() {
       </div>
 
       {pendingFulfil > 0 && (
-        <p className="mb-6 rounded-lg bg-amber-100 px-4 py-3 text-sm text-amber-900">
-          {pendingFulfil} delivery job{pendingFulfil === 1 ? "" : "s"} awaiting processing.
-        </p>
+        <Link
+          href="/admin/deliveries"
+          className="mb-6 flex items-center justify-between gap-3 rounded-2xl px-5 py-4 text-white"
+          style={{
+            background: "linear-gradient(135deg, #b45309 0%, #92400e 100%)",
+            boxShadow: "0 12px 30px rgba(180, 83, 9, 0.28)",
+          }}
+        >
+          <span>
+            <span className="block text-2xl font-extrabold">{pendingFulfil}</span>
+            <span className="text-sm opacity-90">
+              paid order{pendingFulfil === 1 ? "" : "s"} waiting to be delivered
+            </span>
+          </span>
+          <span aria-hidden className="text-2xl font-bold">
+            →
+          </span>
+        </Link>
       )}
 
       <section className="card">

@@ -11,7 +11,7 @@ import {
 import { prisma } from "../db";
 import { ApiError } from "../api";
 import { computeShares, getPaymentProvider, resolveSplitConfiguration } from "../payments";
-import { enqueueFulfillment, runFulfillment } from "../fulfillment";
+import { enqueueFulfillment } from "../fulfillment";
 import { applyPromotion } from "./promotions";
 import { notify } from "./notifications";
 import { runInBackground } from "../background";
@@ -238,12 +238,8 @@ export async function verifyAndSettle(reference: string): Promise<{
       body: `We received ${order.currency} ${(order.finalAmount / 100).toFixed(2)} for ${order.bundleNameSnapshot}.`,
       metadata: { orderId: order.publicId },
     });
-    const fulfillmentId = await enqueueFulfillment(order.id);
-    if (fulfillmentId) {
-      // Delivery runs outside the customer's request path, but must survive
-      // the response on serverless — see runInBackground.
-      runInBackground("fulfillment", () => runFulfillment(fulfillmentId));
-    }
+    // Queues the order for manual delivery and alerts the admins.
+    runInBackground("queue-fulfillment", () => enqueueFulfillment(order.id));
   }
 
   return { paid: true, order: settled };
@@ -297,10 +293,7 @@ export async function payFromWallet(order: Order): Promise<void> {
     { maxWait: 5000, timeout: 15000 },
   );
 
-  const fulfillmentId = await enqueueFulfillment(order.id);
-  if (fulfillmentId) {
-    runInBackground("fulfillment", () => runFulfillment(fulfillmentId));
-  }
+  runInBackground("queue-fulfillment", () => enqueueFulfillment(order.id));
 }
 
 async function assertPurchaseLimits(amount: number): Promise<void> {

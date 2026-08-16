@@ -10,7 +10,6 @@ interface Bundle {
   publicId: string;
   name: string;
   sellingPrice: number;
-  validityDays: number;
   dataAmount: number;
 }
 
@@ -188,7 +187,7 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
                     {b.name}
                   </span>
                   <span className="block text-xs" style={{ color: theme.muted }}>
-                    Valid for {b.validityDays} days
+                    Non-expiring
                   </span>
                 </span>
                 <span
@@ -271,7 +270,7 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
             >
               <Row theme={theme} label="Network" value={network.name} />
               <Row theme={theme} label="Bundle" value={bundle.name} />
-              <Row theme={theme} label="Validity" value={`${bundle.validityDays} days`} />
+              <Row theme={theme} label="Validity" value="Non-expiring" />
               <Row theme={theme} label="Recipient" value={phone} />
               {promoCode && <Row theme={theme} label="Promo code" value={promoCode} />}
 

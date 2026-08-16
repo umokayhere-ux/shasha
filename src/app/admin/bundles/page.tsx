@@ -38,7 +38,6 @@ export default async function AdminBundlesPage() {
           sellingPriceLabel: formatMoney(b.sellingPrice),
           costPriceLabel: formatMoney(b.costPrice),
           marginLabel: formatMoney(b.sellingPrice - b.costPrice),
-          validityDays: b.validityDays,
           isActive: b.isActive,
         }))}
       />

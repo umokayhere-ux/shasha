@@ -13,7 +13,6 @@ interface BundleRow {
   sellingPriceLabel: string;
   costPriceLabel: string;
   marginLabel: string;
-  validityDays: number;
   isActive: boolean;
 }
 
@@ -71,7 +70,6 @@ export function BundleManager({
       dataUnit: form.get("dataUnit"),
       sellingPrice: Number(form.get("sellingPrice")),
       costPrice: Number(form.get("costPrice")),
-      validityDays: Number(form.get("validityDays")),
     });
   }
 
@@ -119,10 +117,6 @@ export function BundleManager({
           <div>
             <label className="label" htmlFor="costPrice">Cost price</label>
             <input id="costPrice" name="costPrice" type="number" step="0.01" min={0} required className="input" />
-          </div>
-          <div>
-            <label className="label" htmlFor="validityDays">Validity (days)</label>
-            <input id="validityDays" name="validityDays" type="number" min={1} defaultValue={30} className="input" />
           </div>
           <div className="flex items-end">
             <button type="submit" disabled={busy} className="btn-primary w-full">Create bundle</button>
