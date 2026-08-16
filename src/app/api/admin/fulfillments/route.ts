@@ -5,6 +5,7 @@ import { handler, ok, parseBody, parsePagination, ApiError } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth";
 import { scheduleRetry, runFulfillment } from "@/lib/fulfillment";
 import { recordAudit } from "@/lib/audit";
+import { runInBackground } from "@/lib/background";
 
 export const GET = handler(async (req: Request) => {
   await requireAdmin();
@@ -63,8 +64,6 @@ export const POST = handler(async (req: Request) => {
     resourceId: fulfillment.id,
   });
 
-  void runFulfillment(fulfillment.id).catch((err) =>
-    console.error("[fulfillment] manual retry failed", err),
-  );
+  runInBackground("fulfillment-retry", () => runFulfillment(fulfillment.id));
   return ok({ queued: true });
 });

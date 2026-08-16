@@ -10,7 +10,7 @@ const TOKEN_TTL_MS = 30 * 60 * 1000;
 
 export const POST = handler(async (req: Request) => {
   const ip = clientIp(await headers()) ?? "unknown";
-  rateLimit(`forgot:${ip}`, 5, 60 * 60 * 1000);
+  await rateLimit(`forgot:${ip}`, 5, 60 * 60 * 1000);
 
   const { email } = await parseBody(req, forgotPasswordSchema);
   const user = await prisma.user.findUnique({ where: { email } });

@@ -204,6 +204,29 @@ export async function scheduleRetry(fulfillmentId: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Re-queues deliveries that were claimed but never finished — an instance that
+ * was frozen or killed mid-attempt leaves a stale PROCESSING lock that
+ * runFulfillment() will not pick up on its own.
+ *
+ * Only records with no provider reference are reset: if the provider was
+ * already given the request, re-running could double-deliver, so those are left
+ * for an admin to resolve.
+ */
+export async function recoverStalledFulfillments(): Promise<number> {
+  const staleBefore = new Date(Date.now() - LOCK_TIMEOUT_MS);
+  const { count } = await prisma.fulfillment.updateMany({
+    where: {
+      status: FulfillmentStatus.PROCESSING,
+      lockedAt: { lt: staleBefore },
+      providerReference: null,
+    },
+    data: { status: FulfillmentStatus.QUEUED, lockedAt: null },
+  });
+  if (count > 0) console.warn("[fulfillment] recovered %d stalled job(s)", count);
+  return count;
+}
+
 /** Drains queued work. Invoke from a worker process or a scheduled job. */
 export async function processQueue(limit = 20): Promise<number> {
   const pending = await prisma.fulfillment.findMany({

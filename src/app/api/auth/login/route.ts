@@ -8,7 +8,7 @@ import { Role } from "@prisma/client";
 
 export const POST = handler(async (req: Request) => {
   const ip = clientIp(await headers()) ?? "unknown";
-  rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  await rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
 
   const { email, password } = await parseBody(req, loginSchema);
   const user = await authenticate(email, password);

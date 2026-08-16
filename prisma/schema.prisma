@@ -491,3 +491,11 @@ model SystemSetting {
   isSecret  Boolean  @default(false)
   updatedAt DateTime @updatedAt
 }
+
+model RateLimit {
+  key     String   @id @map("_id")
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}

@@ -41,7 +41,7 @@ export const GET = handler(async (req: Request) => {
 
 export const POST = handler(async (req: Request) => {
   const user = await requireUser();
-  rateLimit(`order:${user.id}`, 20, 10 * 60 * 1000);
+  await rateLimit(`order:${user.id}`, 20, 10 * 60 * 1000);
 
   const input = await parseBody(req, createOrderSchema);
 

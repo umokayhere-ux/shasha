@@ -16,6 +16,7 @@ settlement), and a queued data-fulfillment pipeline.
 | Data layer | Prisma + MongoDB | Typed access with unique indexes, which is what enforces the idempotency guarantees below. |
 | Money | `Int` minor units (pesewas) | Integer arithmetic only — no floating-point currency drift. |
 | Auth | Opaque session cookie + scrypt | `node:crypto` only, so there is no native build step and no plaintext password anywhere. |
+| Hosting | Vercel (serverless) | Background work uses `after()` and rate limiting is DB-backed, since instances are frozen after responding and not shared. |
 | Payments | `PaymentProvider` interface | Paystack lives behind an interface, so a second provider can be added without touching order logic. |
 | Fulfillment | `DataProvider` interface + mock | The whole app is testable before a real reseller API exists. |
 
@@ -89,6 +90,7 @@ hold.
 | `DATA_PROVIDER_API_URL` / `_KEY` | Reseller credentials. Server-side only. |
 | `BUSINESS_NAME`, `SUPPORT_EMAIL`, `CURRENCY` | Branding and currency display. |
 | `EMAIL_ENABLED` | `true` once an email transport is wired in. |
+| `CRON_SECRET` | Required on Vercel. Authorizes the cron route; without it the route refuses to run. |
 
 No secret is ever read from the database or sent to the client.
 
@@ -160,12 +162,10 @@ defense against double-delivery. Only report `retryable: true` when you are
 certain no delivery occurred; `scheduleRetry()` re-checks provider status before
 retrying anything that has a reference.
 
-Queued jobs run in-process. For production, drain the queue from a worker:
-
-```ts
-import { processQueue } from "@/lib/fulfillment";
-setInterval(() => processQueue(), 30_000);
-```
+Delivery runs immediately after the response via `after()`, with the cron route
+in `/api/cron/process-fulfillments` as the safety net for jobs whose invocation
+died, deliveries still `PROCESSING`, and retryable failures. See the Vercel
+section below.
 
 ---
 
@@ -184,7 +184,8 @@ Verified live against a running server and database:
 
 **Not verified live, and needing a check before production:**
 
-1. **The MongoDB data layer has not been exercised against a live database.**
+1. **The MongoDB data layer and the Vercel-specific paths have not been
+   exercised against a live database or a real deployment.**
    The end-to-end runs above were done on PostgreSQL before the switch to
    MongoDB; since then the schema and build are validated but no query has hit a
    real MongoDB. Run `db:push`, `db:seed`, and one end-to-end purchase against
@@ -199,19 +200,79 @@ Verified live against a running server and database:
 
 ---
 
-## Deployment
+## Deploying to Vercel
 
-1. Provision MongoDB Atlas (replica set) and allowlist the app's egress IPs.
-2. Set all environment variables on the host; never commit `.env`.
-3. `npm run db:push` against production.
-4. `npm run admin:create` once, then unset the admin env vars.
-5. `npm run build && npm start` behind HTTPS (secure cookies require it).
-6. Register the webhook URL in the Paystack dashboard.
-7. Run a worker process calling `processQueue()`.
+The app targets Vercel's serverless model. Three things are load-bearing:
+
+- **Background delivery uses `after()`**, not a floating promise. A serverless
+  instance is frozen once the response returns, so `void doWork()` would be
+  killed mid-flight — meaning a paid order whose delivery silently never ran.
+  See `src/lib/background.ts`.
+- **Rate limiting is stored in MongoDB.** Each invocation may be a fresh
+  instance, so an in-memory counter never accumulates and brute-force protection
+  would quietly disappear.
+- **A cron route is the safety net.** There is no long-running worker, so
+  `/api/cron/process-fulfillments` recovers stalled jobs, drains the queue, and
+  prunes expired rate-limit windows every 5 minutes (`vercel.json`).
+
+### Steps
+
+1. **MongoDB Atlas** — create the cluster (a replica set by default). Under
+   Network Access, Vercel's egress IPs are dynamic, so either allow `0.0.0.0/0`
+   with a strong database password or use an Atlas private endpoint.
+
+2. **Run schema and admin setup locally**, pointed at Atlas — neither can run on
+   Vercel:
+   ```bash
+   DATABASE_URL="<atlas-url>" npm run db:push
+   DATABASE_URL="<atlas-url>" npm run db:seed        # optional, test data only
+   DATABASE_URL="<atlas-url>" AUTH_SECRET="<secret>" \
+     SUPER_ADMIN_EMAIL=you@example.com \
+     SUPER_ADMIN_PASSWORD='...' npm run admin:create
+   ```
+   `db:push` is what creates the unique indexes the duplicate protections rely
+   on. Run it before any real traffic.
+
+3. **Environment variables** (Vercel → Settings → Environment Variables). Set
+   `DATABASE_URL`, `AUTH_SECRET`, `APP_URL` (your real domain), `CRON_SECRET`,
+   `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, and the business/data-provider
+   values. Only `PAYSTACK_PUBLIC_KEY` is safe to expose; never add a
+   `NEXT_PUBLIC_` prefix to any secret. Without `CRON_SECRET` the cron route
+   refuses to run rather than sitting open.
+
+4. **Deploy.** The build runs `prisma generate && next build`. `vercel.json`
+   registers the cron schedule automatically.
+
+5. **Paystack webhook** — point it at
+   `https://<your-domain>/api/webhooks/paystack` and confirm `APP_URL` matches
+   your domain, since the payment callback URL is built from it.
+
+6. **Verify** a test-mode purchase end to end, then check that the cron route is
+   firing under Vercel → Deployments → Cron Jobs.
+
+### Vercel-specific notes
+
+- `maxDuration` on the cron route is 60s; Hobby plans cap lower, so raise it or
+  reduce the batch size if the queue grows.
+- Vercel Cron has a minimum granularity of 1 minute and is best-effort — it is a
+  backstop, not the primary delivery path.
+- Prisma requires the Node.js runtime; do not move these routes to Edge.
 
 Security headers (HSTS, `X-Frame-Options`, `nosniff`, Referrer-Policy) are set in
-`next.config.ts`. Rate limiting is in-memory and per-process — move it to Redis
-before running more than one instance.
+`next.config.ts`. Secure cookies require HTTPS, which Vercel provides.
+
+### Deploying elsewhere
+
+On a normal long-running host, run `npm run build && npm start` behind HTTPS and
+drain the queue from a worker instead of cron:
+
+```ts
+import { processQueue, recoverStalledFulfillments } from "@/lib/fulfillment";
+setInterval(async () => {
+  await recoverStalledFulfillments();
+  await processQueue();
+}, 30_000);
+```
 
 ---
 

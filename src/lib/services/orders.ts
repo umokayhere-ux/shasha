@@ -14,6 +14,7 @@ import { computeShares, getPaymentProvider, resolveSplitConfiguration } from "..
 import { enqueueFulfillment, runFulfillment } from "../fulfillment";
 import { applyPromotion } from "./promotions";
 import { notify } from "./notifications";
+import { runInBackground } from "../background";
 
 export function generateReference(): string {
   return `SH-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -239,10 +240,9 @@ export async function verifyAndSettle(reference: string): Promise<{
     });
     const fulfillmentId = await enqueueFulfillment(order.id);
     if (fulfillmentId) {
-      // Delivery runs outside the customer's request path.
-      void runFulfillment(fulfillmentId).catch((err) =>
-        console.error("[fulfillment] background run failed", err),
-      );
+      // Delivery runs outside the customer's request path, but must survive
+      // the response on serverless — see runInBackground.
+      runInBackground("fulfillment", () => runFulfillment(fulfillmentId));
     }
   }
 
@@ -299,9 +299,7 @@ export async function payFromWallet(order: Order): Promise<void> {
 
   const fulfillmentId = await enqueueFulfillment(order.id);
   if (fulfillmentId) {
-    void runFulfillment(fulfillmentId).catch((err) =>
-      console.error("[fulfillment] background run failed", err),
-    );
+    runInBackground("fulfillment", () => runFulfillment(fulfillmentId));
   }
 }
 

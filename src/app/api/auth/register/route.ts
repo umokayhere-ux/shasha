@@ -9,7 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 
 export const POST = handler(async (req: Request) => {
   const ip = clientIp(await headers()) ?? "unknown";
-  rateLimit(`register:${ip}`, 5, 60 * 60 * 1000);
+  await rateLimit(`register:${ip}`, 5, 60 * 60 * 1000);
 
   const setting = await prisma.systemSetting.findUnique({ where: { key: "registration_enabled" } });
   if (setting?.value === false) {

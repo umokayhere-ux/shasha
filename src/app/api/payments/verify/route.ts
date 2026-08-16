@@ -14,7 +14,7 @@ const schema = z.object({ reference: z.string().min(6).max(64) });
  */
 export const POST = handler(async (req: Request) => {
   const user = await requireUser();
-  rateLimit(`verify:${user.id}`, 30, 5 * 60 * 1000);
+  await rateLimit(`verify:${user.id}`, 30, 5 * 60 * 1000);
 
   const { reference } = await parseBody(req, schema);
 
