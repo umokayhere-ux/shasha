@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BUSINESS_NAME, BUSINESS_TAGLINE } from "@/lib/branding";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,8 +36,8 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Shasha</h1>
-        <p className="muted mt-1 text-sm">Data bundles, delivered in seconds.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{BUSINESS_NAME}</h1>
+        <p className="muted mt-1 text-sm">{BUSINESS_TAGLINE}</p>
       </div>
       <div className="card">
         <h2 className="text-xl font-bold">Welcome back</h2>

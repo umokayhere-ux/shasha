@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BUSINESS_NAME } from "@/lib/branding";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function RegisterPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
       <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold tracking-tight">Shasha</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">{BUSINESS_NAME}</h1>
         <p className="muted mt-1 text-sm">Create an account to start buying data.</p>
       </div>
       <div className="card">

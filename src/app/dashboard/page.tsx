@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { networkTheme } from "@/lib/network-theme";
 import { SignOutButton } from "@/components/SignOutButton";
 import { NOT_DELETED } from "@/lib/not-deleted";
+import { BUSINESS_NAME } from "@/lib/branding";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +35,12 @@ export default async function CustomerDashboard() {
     <main className="mx-auto max-w-3xl px-4 py-6">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <p className="muted text-sm">Welcome back</p>
-          <h1 className="text-2xl font-extrabold tracking-tight">
-            {user.name.split(" ")[0]}
-          </h1>
+          <p className="text-lg font-extrabold tracking-tight" style={{ color: "var(--brand)" }}>
+            {BUSINESS_NAME}
+          </p>
+          <p className="muted mt-0.5 text-sm">
+            Welcome back, <span className="font-semibold">{user.name.split(" ")[0]}</span>
+          </p>
         </div>
         <div className="flex gap-2">
           <Link href="/orders" className="btn-ghost">

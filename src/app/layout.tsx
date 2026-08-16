@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { BUSINESS_NAME, BUSINESS_TAGLINE } from "@/lib/branding";
 
 export const metadata: Metadata = {
-  title: process.env.BUSINESS_NAME ?? "Shasha — Buy Data Bundles",
-  description: "Buy mobile data bundles instantly. Fast, secure delivery.",
+  title: `${BUSINESS_NAME} — Buy Data Bundles`,
+  description: BUSINESS_TAGLINE,
 };
 
 export const viewport: Viewport = {

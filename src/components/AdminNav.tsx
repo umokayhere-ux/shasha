@@ -17,7 +17,15 @@ const NAV: Array<[string, string, string]> = [
   ["Settings", "/admin/settings", "⚙️"],
 ];
 
-export function AdminNav({ email, name }: { email: string; name: string }) {
+export function AdminNav({
+  email,
+  name,
+  businessName,
+}: {
+  email: string;
+  name: string;
+  businessName: string;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -57,7 +65,7 @@ export function AdminNav({ email, name }: { email: string; name: string }) {
             className="absolute left-0 top-0 flex h-full w-72 flex-col overflow-y-auto p-4"
             style={{ background: "var(--surface)" }}
           >
-            <Header name={name} email={email} />
+            <Header name={name} email={email} businessName={businessName} />
             <nav className="mt-4 flex flex-col gap-1">
               {NAV.map(([label, href, icon]) => (
                 <Link
@@ -82,7 +90,7 @@ export function AdminNav({ email, name }: { email: string; name: string }) {
         style={{ background: "var(--surface)", borderColor: "var(--border)" }}
       >
         <div className="sticky top-0 p-4">
-          <Header name={name} email={email} />
+          <Header name={name} email={email} businessName={businessName} />
           <nav className="mt-4 flex flex-col gap-1">
             {NAV.map(([label, href, icon]) => (
               <Link
@@ -102,10 +110,19 @@ export function AdminNav({ email, name }: { email: string; name: string }) {
   );
 }
 
-function Header({ name, email }: { name: string; email: string }) {
+function Header({
+  name,
+  email,
+  businessName,
+}: {
+  name: string;
+  email: string;
+  businessName: string;
+}) {
   return (
     <div>
-      <p className="text-lg font-bold tracking-tight">Shasha Admin</p>
+      <p className="text-lg font-extrabold tracking-tight">{businessName}</p>
+      <p className="muted text-[11px] font-semibold uppercase tracking-widest">Admin</p>
       <p className="muted truncate text-xs">{name}</p>
       <p className="muted truncate text-xs">{email}</p>
     </div>
