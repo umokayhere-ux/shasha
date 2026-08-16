@@ -6,26 +6,40 @@ export const dynamic = "force-dynamic";
 
 const BUSINESS = process.env.BUSINESS_NAME ?? "Shasha";
 
+/**
+ * The catalog is fetched defensively: a database outage should degrade the
+ * storefront to an empty state, not return a 500 to every visitor.
+ */
+async function loadCatalog() {
+  try {
+    const [networks, featured] = await Promise.all([
+      prisma.network.findMany({
+        where: { isActive: true, deletedAt: null },
+        orderBy: { displayOrder: "asc" },
+        select: { publicId: true, name: true, slug: true },
+      }),
+      prisma.bundle.findMany({
+        where: { isActive: true, deletedAt: null, network: { isActive: true } },
+        orderBy: [{ isFeatured: "desc" }, { displayOrder: "asc" }],
+        take: 6,
+        select: {
+          publicId: true,
+          name: true,
+          sellingPrice: true,
+          validityDays: true,
+          network: { select: { name: true } },
+        },
+      }),
+    ]);
+    return { networks, featured, degraded: false };
+  } catch (err) {
+    console.error("[home] catalog unavailable", err);
+    return { networks: [], featured: [], degraded: true };
+  }
+}
+
 export default async function HomePage() {
-  const [networks, featured] = await Promise.all([
-    prisma.network.findMany({
-      where: { isActive: true, deletedAt: null },
-      orderBy: { displayOrder: "asc" },
-      select: { publicId: true, name: true, slug: true },
-    }),
-    prisma.bundle.findMany({
-      where: { isActive: true, deletedAt: null, network: { isActive: true } },
-      orderBy: [{ isFeatured: "desc" }, { displayOrder: "asc" }],
-      take: 6,
-      select: {
-        publicId: true,
-        name: true,
-        sellingPrice: true,
-        validityDays: true,
-        network: { select: { name: true } },
-      },
-    }),
-  ]);
+  const { networks, featured, degraded } = await loadCatalog();
 
   return (
     <div>
@@ -71,7 +85,11 @@ export default async function HomePage() {
               </Link>
             ))}
             {networks.length === 0 && (
-              <p className="muted col-span-full">Networks are being set up. Check back shortly.</p>
+              <p className="muted col-span-full">
+                {degraded
+                  ? "We're having trouble loading bundles right now. Please try again shortly."
+                  : "Networks are being set up. Check back shortly."}
+              </p>
             )}
           </div>
         </section>
