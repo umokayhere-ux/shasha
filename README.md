@@ -213,7 +213,10 @@ The app targets Vercel's serverless model. Three things are load-bearing:
   would quietly disappear.
 - **A cron route is the safety net.** There is no long-running worker, so
   `/api/cron/process-fulfillments` recovers stalled jobs, drains the queue, and
-  prunes expired rate-limit windows every 5 minutes (`vercel.json`).
+  prunes expired rate-limit windows. `vercel.json` schedules it daily at 03:00
+  UTC, because **Vercel Hobby rejects any cron more frequent than once per day**
+  — the deploy fails outright rather than downgrading. On Pro, tighten it to
+  `*/5 * * * *`.
 
 ### Steps
 
@@ -247,15 +250,19 @@ The app targets Vercel's serverless model. Three things are load-bearing:
    `https://<your-domain>/api/webhooks/paystack` and confirm `APP_URL` matches
    your domain, since the payment callback URL is built from it.
 
-6. **Verify** a test-mode purchase end to end, then check that the cron route is
-   firing under Vercel → Deployments → Cron Jobs.
+6. **Verify** a test-mode purchase end to end, then check the cron route under
+   Vercel → Settings → Cron Jobs (it can be triggered manually there rather than
+   waiting for 03:00).
 
 ### Vercel-specific notes
 
-- `maxDuration` on the cron route is 60s; Hobby plans cap lower, so raise it or
-  reduce the batch size if the queue grows.
-- Vercel Cron has a minimum granularity of 1 minute and is best-effort — it is a
-  backstop, not the primary delivery path.
+- `maxDuration` on the cron route is 60s; Hobby caps lower, so reduce the batch
+  size if the queue grows.
+- **Hobby allows only daily crons.** Delivery still happens immediately via
+  `after()`, so the practical cost is that a *failed* delivery may wait up to a
+  day for its retry. If that is too slow before upgrading to Pro, hit the route
+  from an external scheduler (GitHub Actions, cron-job.org) with
+  `Authorization: Bearer $CRON_SECRET` — it is a plain authenticated GET.
 - Prisma requires the Node.js runtime; do not move these routes to Edge.
 
 Security headers (HSTS, `X-Frame-Options`, `nosniff`, Referrer-Policy) are set in
