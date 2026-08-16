@@ -27,7 +27,7 @@ export default async function CustomerDashboard() {
     prisma.network.findMany({
       where: { isActive: true, ...NOT_DELETED },
       orderBy: { displayOrder: "asc" },
-      select: { publicId: true, name: true, slug: true },
+      select: { publicId: true, name: true, slug: true, logoUrl: true },
     }),
   ]);
 
@@ -93,13 +93,24 @@ export default async function CustomerDashboard() {
                   boxShadow: "0 10px 24px rgba(2,6,23,0.12)",
                 }}
               >
-                <span
-                  aria-hidden
-                  className="grid h-11 w-11 place-items-center rounded-xl text-[9px] font-black"
-                  style={{ background: t.accent, color: t.onAccent }}
-                >
-                  {t.mark}
-                </span>
+                {n.logoUrl ? (
+                  <span className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-white p-1">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- stored inline as a data URI */}
+                    <img
+                      src={n.logoUrl}
+                      alt={`${n.name} logo`}
+                      className="h-full w-full object-contain"
+                    />
+                  </span>
+                ) : (
+                  <span
+                    aria-hidden
+                    className="grid h-11 w-11 place-items-center rounded-xl text-[9px] font-black"
+                    style={{ background: t.accent, color: t.onAccent }}
+                  >
+                    {t.mark}
+                  </span>
+                )}
                 <span className="text-xs font-bold" style={{ color: t.text }}>
                   {n.name}
                 </span>

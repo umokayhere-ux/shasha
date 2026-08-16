@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { phoneSchema, passwordSchema, createOrderSchema } from "@/lib/validation";
+import {
+  phoneSchema,
+  passwordSchema,
+  createOrderSchema,
+  networkLogoSchema,
+} from "@/lib/validation";
 
 describe("phone validation", () => {
   it("accepts and normalizes local format", () => {
@@ -39,5 +44,37 @@ describe("order input", () => {
     expect(() =>
       createOrderSchema.parse({ bundleId: "1", recipientPhone: "0244123456" }),
     ).toThrow();
+  });
+});
+
+describe("network logo", () => {
+  const parse = (logoUrl: string) => networkLogoSchema.parse({ logoUrl });
+
+  it("accepts a PNG data URI", () => {
+    expect(parse("data:image/png;base64,iVBORw0KGgo=").logoUrl).toContain("image/png");
+  });
+
+  it("accepts an https URL", () => {
+    expect(parse("https://cdn.example.com/mtn.png").logoUrl).toContain("https://");
+  });
+
+  it("accepts an empty string, which clears the logo", () => {
+    expect(parse("").logoUrl).toBe("");
+  });
+
+  it("rejects SVG, which can carry script", () => {
+    expect(() => parse("data:image/svg+xml;base64,PHN2Zz48c2NyaXB0Pg==")).toThrow();
+  });
+
+  it("rejects a javascript: payload", () => {
+    expect(() => parse("javascript:alert(1)")).toThrow();
+  });
+
+  it("rejects plain http", () => {
+    expect(() => parse("http://insecure.example.com/logo.png")).toThrow();
+  });
+
+  it("rejects an oversized image", () => {
+    expect(() => parse(`data:image/png;base64,${"A".repeat(400_001)}`)).toThrow();
   });
 });

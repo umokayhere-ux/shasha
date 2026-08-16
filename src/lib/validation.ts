@@ -128,3 +128,24 @@ export const walletAdjustmentSchema = z.object({
   amount: moneyMajor.refine((v) => v > 0, "Amount must be greater than zero"),
   description: z.string().trim().min(3).max(200),
 });
+
+/**
+ * Network logo: either an https URL or an inline data URI.
+ *
+ * SVG is deliberately excluded — it can carry script, and these are rendered
+ * straight back into pages. The size cap keeps a base64 image from bloating the
+ * documents that every catalogue query loads.
+ */
+export const networkLogoSchema = z.object({
+  logoUrl: z
+    .string()
+    .trim()
+    .max(400_000, "That image is too large — use one under about 250KB")
+    .refine(
+      (v) =>
+        v === "" ||
+        /^https:\/\/\S+$/i.test(v) ||
+        /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(v),
+      "Logo must be a PNG, JPEG or WebP image, or an https URL",
+    ),
+});

@@ -17,6 +17,7 @@ interface Network {
   publicId: string;
   name: string;
   slug: string;
+  logoUrl: string | null;
   bundles: Bundle[];
 }
 
@@ -97,7 +98,7 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
                   boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
                 }}
               >
-                <LogoTile theme={t} />
+                <LogoTile theme={t} logoUrl={n.logoUrl} name={n.name} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-lg font-bold" style={{ color: t.text }}>
                     {n.name}
@@ -141,7 +142,7 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
           >
             ←
           </button>
-          <LogoTile theme={theme} />
+          <LogoTile theme={theme} logoUrl={network.logoUrl} name={network.name} />
           <div>
             <p className="text-xl font-extrabold" style={{ color: theme.accent }}>
               {network.name}
@@ -302,8 +303,27 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
   );
 }
 
-/** Network mark: accent tile with the network wordmark. */
-function LogoTile({ theme }: { theme: NetworkTheme }) {
+/**
+ * Network mark. Uses the uploaded logo when one exists, otherwise falls back to
+ * the wordmark tile so a network without a logo still renders on brand.
+ */
+function LogoTile({
+  theme,
+  logoUrl,
+  name,
+}: {
+  theme: NetworkTheme;
+  logoUrl?: string | null;
+  name?: string;
+}) {
+  if (logoUrl) {
+    return (
+      <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white p-1">
+        {/* eslint-disable-next-line @next/next/no-img-element -- stored inline as a data URI */}
+        <img src={logoUrl} alt={name ? `${name} logo` : ""} className="h-full w-full object-contain" />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden

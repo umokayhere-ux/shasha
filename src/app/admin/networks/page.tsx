@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
 import { SeedButton } from "./SeedButton";
+import { LogoUploader } from "./LogoUploader";
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +26,10 @@ export default async function AdminNetworksPage() {
           <EmptyState message="No networks yet. Use the seed button above to create MTN, Telecel and AirtelTigo with starter bundles." />
         ) : (
           <div className="table-wrap">
-            <table className="table min-w-[560px]">
+            <table className="table min-w-[720px]">
               <thead>
                 <tr>
+                  <th>Logo</th>
                   <th>Name</th>
                   <th>Slug</th>
                   <th>Bundles</th>
@@ -38,6 +40,13 @@ export default async function AdminNetworksPage() {
               <tbody>
                 {networks.map((n) => (
                   <tr key={n.publicId}>
+                    <td>
+                      <LogoUploader
+                        networkId={n.publicId}
+                        networkName={n.name}
+                        currentLogo={n.logoUrl}
+                      />
+                    </td>
                     <td className="font-medium">{n.name}</td>
                     <td className="muted font-mono text-xs">{n.slug}</td>
                     <td>{n._count.bundles}</td>

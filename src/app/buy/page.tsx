@@ -17,6 +17,7 @@ export default async function BuyPage() {
       publicId: true,
       name: true,
       slug: true,
+      logoUrl: true,
       bundles: {
         where: { isActive: true, ...NOT_DELETED },
         orderBy: [{ displayOrder: "asc" }, { sellingPrice: "asc" }],
