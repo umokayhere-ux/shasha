@@ -1,0 +1,493 @@
+// Shasha — data bundle sales platform
+// All money is stored in minor units (pesewas) as Int to avoid float drift.
+//
+// MongoDB notes:
+//  - Multi-document transactions (wallet debit, order+promotion writes) require
+//    a REPLICA SET. Atlas provides this by default; a standalone mongod does not.
+//  - Schema changes are applied with `prisma db push` (MongoDB has no migrations).
+//  - Unique indexes below are what enforce idempotency; they are created by push.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum FulfillmentStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  PAYSTACK
+  WALLET
+}
+
+enum WalletTxnType {
+  DEPOSIT
+  PURCHASE
+  REFUND
+  ADJUSTMENT
+}
+
+enum WalletDirection {
+  CREDIT
+  DEBIT
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED
+}
+
+enum SplitMode {
+  PLATFORM_ONLY
+  SUBACCOUNT_SPLIT
+}
+
+model User {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  publicId      String     @unique @default(uuid())
+  email         String     @unique
+  phone         String?    @unique
+  name          String
+  passwordHash  String
+  role          Role       @default(CUSTOMER)
+  status        UserStatus @default(ACTIVE)
+  emailVerified DateTime?
+  lastLoginAt   DateTime?
+  failedLogins  Int        @default(0)
+  lockedUntil   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  sessions      Session[]
+  orders        Order[]
+  payments      Payment[]
+  wallet        Wallet?
+  notifications Notification[]
+  auditLogs     AuditLog[]           @relation("AuditActor")
+  priceChanges  BundlePriceHistory[]
+  resetTokens   PasswordResetToken[]
+  promoUsages   PromotionUsage[]
+
+  @@index([role, status])
+}
+
+model Session {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  tokenHash String    @unique
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Network {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  publicId     String    @unique @default(uuid())
+  name         String    @unique
+  slug         String    @unique
+  logoUrl      String?
+  description  String?
+  isActive     Boolean   @default(true)
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  bundles Bundle[]
+  orders  Order[]
+
+  @@index([isActive, displayOrder])
+}
+
+model Bundle {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  publicId     String    @unique @default(uuid())
+  networkId    String    @db.ObjectId
+  name         String
+  dataAmount   Int // stored in MB
+  dataUnit     String    @default("MB")
+  sellingPrice Int // minor units
+  costPrice    Int // minor units
+  validityDays Int       @default(30)
+  description  String?
+  providerCode String? // maps to the upstream data provider's product code
+  isActive     Boolean   @default(true)
+  isFeatured   Boolean   @default(false)
+  displayOrder Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  network      Network              @relation(fields: [networkId], references: [id])
+  orders       Order[]
+  priceHistory BundlePriceHistory[]
+
+  @@unique([networkId, name])
+  @@index([networkId, isActive, displayOrder])
+}
+
+model BundlePriceHistory {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  bundleId        String   @db.ObjectId
+  oldSellingPrice Int
+  newSellingPrice Int
+  oldCostPrice    Int
+  newCostPrice    Int
+  changedByUserId String?  @db.ObjectId
+  reason          String?
+  createdAt       DateTime @default(now())
+
+  bundle    Bundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  changedBy User?  @relation(fields: [changedByUserId], references: [id])
+
+  @@index([bundleId, createdAt])
+}
+
+model Order {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+  // Human-facing, also used as the Paystack transaction reference.
+  reference String @unique
+
+  customerId String  @db.ObjectId
+  bundleId   String? @db.ObjectId
+  networkId  String? @db.ObjectId
+
+  // Immutable snapshot — historical orders never re-price off the live bundle.
+  networkNameSnapshot  String
+  bundleNameSnapshot   String
+  dataAmountSnapshot   Int
+  dataUnitSnapshot     String
+  validityDaysSnapshot Int
+  sellingPriceSnapshot Int
+  costPriceSnapshot    Int
+  providerCodeSnapshot String?
+
+  recipientPhone String
+  discountAmount Int    @default(0)
+  finalAmount    Int
+  currency       String @default("GHS")
+
+  paymentMethod     PaymentMethod     @default(PAYSTACK)
+  paymentStatus     PaymentStatus     @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(PENDING)
+  status            OrderStatus       @default(PENDING)
+
+  promotionId   String?   @db.ObjectId
+  failureReason String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  customer    User             @relation(fields: [customerId], references: [id])
+  bundle      Bundle?          @relation(fields: [bundleId], references: [id])
+  network     Network?         @relation(fields: [networkId], references: [id])
+  promotion   Promotion?       @relation(fields: [promotionId], references: [id])
+  payments    Payment[]
+  fulfillment Fulfillment?
+  promoUsages PromotionUsage[]
+
+  @@index([customerId, createdAt])
+  @@index([paymentStatus, fulfillmentStatus])
+  @@index([createdAt])
+}
+
+model Payment {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+
+  orderId    String @db.ObjectId
+  customerId String @db.ObjectId
+
+  provider              String  @default("paystack")
+  providerReference     String  @unique
+  providerTransactionId String? @unique
+
+  amount     Int
+  currency   String        @default("GHS")
+  channel    String?
+  status     PaymentStatus @default(PENDING)
+  feesAmount Int?
+
+  // Split settlement snapshot, resolved server-side at initialization.
+  splitMode       SplitMode @default(PLATFORM_ONLY)
+  subaccountCode  String?
+  subaccountShare Int?
+  platformShare   Int?
+  splitConfigId   String?   @db.ObjectId
+
+  providerResponse Json?
+  verifiedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  order       Order                      @relation(fields: [orderId], references: [id])
+  customer    User                       @relation(fields: [customerId], references: [id])
+  splitConfig PaymentSplitConfiguration? @relation(fields: [splitConfigId], references: [id])
+
+  @@index([customerId, createdAt])
+  @@index([status])
+}
+
+model PaymentWebhookEvent {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  provider String @default("paystack")
+  // Dedupe key: hash of the raw body, unique per provider.
+  eventSignature  String
+  eventType       String
+  reference       String?
+  payload         Json
+  processedAt     DateTime?
+  processingError String?
+  createdAt       DateTime  @default(now())
+
+  @@unique([provider, eventSignature])
+  @@index([reference])
+}
+
+model PaystackSubaccount {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+
+  displayName    String
+  subaccountCode String  @unique
+  businessName   String?
+  settlementBank String?
+  bankCode       String?
+  accountName    String?
+  // Only the last 4 digits are retained; full account numbers are never stored.
+  accountNumberMasked String?
+  isActive            Boolean  @default(false)
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  splitConfigs PaymentSplitConfiguration[]
+}
+
+model PaymentSplitConfiguration {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+
+  name         String    @unique
+  subaccountId String?   @db.ObjectId
+  mode         SplitMode @default(PLATFORM_ONLY)
+  // Paystack `transaction_charge` (flat, minor units) or `percentage_charge`.
+  bearer            String   @default("account") // "account" | "subaccount"
+  percentageCharge  Float?
+  transactionCharge Int?
+  isDefault         Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subaccount PaystackSubaccount? @relation(fields: [subaccountId], references: [id])
+  payments   Payment[]
+}
+
+model Fulfillment {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+
+  orderId String @unique @db.ObjectId
+  // Guarantees one delivery attempt chain per paid order.
+  idempotencyKey String @unique
+
+  status            FulfillmentStatus @default(PENDING)
+  provider          String            @default("mock")
+  providerReference String?
+  providerResponse  Json?
+  retryCount        Int               @default(0)
+  lastError         String?
+  lockedAt          DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([status, createdAt])
+}
+
+model ProviderTransaction {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  provider  String
+  orderId   String?  @db.ObjectId
+  reference String?
+  request   Json?
+  response  Json?
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([provider, createdAt])
+}
+
+model Wallet {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  balance   Int      @default(0)
+  currency  String   @default("GHS")
+  isLocked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+
+  walletId      String          @db.ObjectId
+  type          WalletTxnType
+  direction     WalletDirection
+  amount        Int
+  balanceBefore Int
+  balanceAfter  Int
+  description   String?
+  orderId       String?         @db.ObjectId
+  reference     String          @unique
+  createdAt     DateTime        @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+}
+
+model Promotion {
+  id       String @id @default(auto()) @map("_id") @db.ObjectId
+  publicId String @unique @default(uuid())
+
+  name             String
+  code             String        @unique
+  type             PromotionType
+  value            Int // percent, or minor units for FIXED
+  minPurchase      Int           @default(0)
+  usageLimit       Int?
+  perCustomerLimit Int?
+  usageCount       Int           @default(0)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  orders Order[]
+  usages PromotionUsage[]
+}
+
+model PromotionUsage {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  promotionId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  orderId     String   @db.ObjectId
+  amountOff   Int
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, orderId])
+  @@index([promotionId, userId])
+}
+
+model Notification {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String    @db.ObjectId
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId      String?  @db.ObjectId
+  action       String
+  resourceType String
+  resourceId   String?
+  oldValues    Json?
+  newValues    Json?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model SystemSetting {
+  key       String   @id @map("_id")
+  value     Json
+  isSecret  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
