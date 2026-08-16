@@ -5,6 +5,7 @@ import {
   createOrderSchema,
   networkLogoSchema,
 } from "@/lib/validation";
+import { cleanUrl } from "@/lib/env";
 
 describe("phone validation", () => {
   it("accepts and normalizes local format", () => {
@@ -76,5 +77,27 @@ describe("network logo", () => {
 
   it("rejects an oversized image", () => {
     expect(() => parse(`data:image/png;base64,${"A".repeat(400_001)}`)).toThrow();
+  });
+});
+
+describe("environment URL cleaning", () => {
+  it("strips angle brackets and a trailing newline from a pasted URL", () => {
+    expect(cleanUrl("<https://api.paystack.co>\n", "https://fallback")).toBe(
+      "https://api.paystack.co",
+    );
+  });
+
+  it("strips wrapping quotes and a trailing slash", () => {
+    expect(cleanUrl('"https://example.com/"', "https://fallback")).toBe("https://example.com");
+  });
+
+  it("falls back when the value is unusable", () => {
+    expect(cleanUrl("not a url", "https://fallback")).toBe("https://fallback");
+    expect(cleanUrl(undefined, "https://fallback")).toBe("https://fallback");
+    expect(cleanUrl("", "https://fallback")).toBe("https://fallback");
+  });
+
+  it("rejects a non-http scheme", () => {
+    expect(cleanUrl("javascript:alert(1)", "https://fallback")).toBe("https://fallback");
   });
 });

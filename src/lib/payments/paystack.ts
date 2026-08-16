@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { SplitMode } from "@prisma/client";
 import { ApiError } from "../api";
+import { cleanSecret, cleanUrl } from "../env";
 import type {
   InitializeParams,
   InitializeResult,
@@ -22,11 +23,11 @@ import type {
  * All the shape-sensitive details are deliberately confined here.
  */
 
-const BASE_URL = process.env.PAYSTACK_BASE_URL ?? "https://api.paystack.co";
+const BASE_URL = cleanUrl(process.env.PAYSTACK_BASE_URL, "https://api.paystack.co");
 const WEBHOOK_HEADER = "x-paystack-signature";
 
 function secretKey(): string {
-  const key = process.env.PAYSTACK_SECRET_KEY;
+  const key = cleanSecret(process.env.PAYSTACK_SECRET_KEY);
   if (!key) throw new ApiError("Payments are not configured. Contact support.", 503);
   return key;
 }
@@ -49,7 +50,10 @@ async function call<T>(
       cache: "no-store",
     });
   } catch (err) {
-    console.error("[paystack] network failure", path, err);
+    // The usual cause is a malformed PAYSTACK_BASE_URL, which makes fetch throw
+    // before any request leaves the server. Log the resolved URL so that is
+    // visible without guessing.
+    console.error("[paystack] request to %s%s failed", BASE_URL, path, err);
     throw new ApiError("Could not reach the payment provider. Please try again.", 502);
   }
 

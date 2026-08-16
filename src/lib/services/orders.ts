@@ -15,6 +15,7 @@ import { enqueueFulfillment } from "../fulfillment";
 import { applyPromotion } from "./promotions";
 import { notify } from "./notifications";
 import { runInBackground } from "../background";
+import { cleanUrl } from "../env";
 
 export function generateReference(): string {
   return `SH-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -316,5 +317,5 @@ async function assertPurchaseLimits(amount: number): Promise<void> {
 }
 
 export function appUrl(): string {
-  return process.env.APP_URL ?? "http://localhost:3000";
+  return cleanUrl(process.env.APP_URL, "http://localhost:3000");
 }
