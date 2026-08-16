@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
+import { SeedButton } from "./SeedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,11 @@ export default async function AdminNetworksPage() {
       <PageHeader
         title="Networks"
         subtitle="Networks come from the database, so new ones need no code change."
+        action={<SeedButton hasNetworks={networks.length > 0} />}
       />
       <div className="card">
         {networks.length === 0 ? (
-          <EmptyState message="No networks yet. Run /setup to seed them." />
+          <EmptyState message="No networks yet. Use the seed button above to create MTN, Telecel and AirtelTigo with starter bundles." />
         ) : (
           <div className="table-wrap">
             <table className="table min-w-[560px]">

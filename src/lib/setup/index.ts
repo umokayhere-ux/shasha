@@ -47,15 +47,30 @@ export async function alreadyProvisioned(): Promise<boolean> {
   return admins > 0;
 }
 
-export async function runSetup(admin: {
-  email: string;
-  password: string;
-  name: string;
-}): Promise<SetupResult> {
-  // Indexes first: seeding before the unique constraints exist could write the
-  // very duplicates those constraints are meant to reject.
-  const indexes = await createIndexes();
+export interface SeedResult {
+  indexes: IndexResult;
+  networks: number;
+  bundles: number;
+}
 
+/**
+ * Creates indexes and the default catalog. Separate from admin provisioning so
+ * it stays available after setup has run — every write is an upsert keyed on
+ * slug or (network, name), so re-running never duplicates a network and never
+ * overwrites prices an admin has since edited.
+ */
+export async function seedCatalog(): Promise<SeedResult> {
+  const indexes = await createIndexes();
+  await seedSettingsAndCatalog();
+
+  const [networks, bundles] = await Promise.all([
+    prisma.network.count(),
+    prisma.bundle.count(),
+  ]);
+  return { indexes, networks, bundles };
+}
+
+async function seedSettingsAndCatalog(): Promise<void> {
   for (const [key, value] of SETTINGS) {
     await prisma.systemSetting.upsert({
       where: { key },
@@ -90,6 +105,17 @@ export async function runSetup(admin: {
       });
     }
   }
+}
+
+export async function runSetup(admin: {
+  email: string;
+  password: string;
+  name: string;
+}): Promise<SetupResult> {
+  // Indexes first: seeding before the unique constraints exist could write the
+  // very duplicates those constraints are meant to reject.
+  const indexes = await createIndexes();
+  await seedSettingsAndCatalog();
 
   const email = admin.email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email } });
