@@ -6,7 +6,9 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminNetworksPage() {
   const networks = await prisma.network.findMany({
-    where: { deletedAt: null },
+    // On MongoDB a never-deleted document has no deletedAt field at all, which
+    // is distinct from an explicit null — match both so seeded rows are listed.
+    where: { OR: [{ deletedAt: null }, { deletedAt: { isSet: false } }] },
     orderBy: { displayOrder: "asc" },
     include: { _count: { select: { bundles: true, orders: true } } },
   });

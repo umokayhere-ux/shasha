@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { bundleSchema } from "@/lib/validation";
 import { toMinor } from "@/lib/money";
 import { recordAudit } from "@/lib/audit";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const GET = handler(async (req: Request) => {
   await requireAdmin();
@@ -11,7 +12,7 @@ export const GET = handler(async (req: Request) => {
   const networkId = url.searchParams.get("networkId");
 
   const bundles = await prisma.bundle.findMany({
-    where: { deletedAt: null, ...(networkId ? { network: { publicId: networkId } } : {}) },
+    where: { ...NOT_DELETED, ...(networkId ? { network: { publicId: networkId } } : {}) },
     orderBy: [{ network: { displayOrder: "asc" } }, { displayOrder: "asc" }],
     include: { network: { select: { publicId: true, name: true } } },
   });

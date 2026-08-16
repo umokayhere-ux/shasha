@@ -1,18 +1,19 @@
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { BundleManager } from "./BundleManager";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBundlesPage() {
   const [bundles, networks] = await Promise.all([
     prisma.bundle.findMany({
-      where: { deletedAt: null },
+      where: NOT_DELETED,
       orderBy: [{ network: { displayOrder: "asc" } }, { displayOrder: "asc" }],
       include: { network: { select: { publicId: true, name: true } } },
     }),
     prisma.network.findMany({
-      where: { deletedAt: null },
+      where: NOT_DELETED,
       orderBy: { displayOrder: "asc" },
       select: { publicId: true, name: true },
     }),

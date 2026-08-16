@@ -2,6 +2,7 @@ import { FulfillmentStatus, OrderStatus, PaymentStatus, Role, UserStatus } from 
 import { prisma } from "@/lib/db";
 import { handler, ok } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 function startOfToday(): Date {
   const d = new Date();
@@ -40,16 +41,16 @@ export const GET = handler(async () => {
     revenueMonth,
     recentOrders,
   ] = await Promise.all([
-    prisma.user.count({ where: { role: Role.CUSTOMER, deletedAt: null } }),
-    prisma.user.count({ where: { role: Role.CUSTOMER, status: UserStatus.ACTIVE, deletedAt: null } }),
+    prisma.user.count({ where: { role: Role.CUSTOMER, ...NOT_DELETED } }),
+    prisma.user.count({ where: { role: Role.CUSTOMER, status: UserStatus.ACTIVE, ...NOT_DELETED } }),
     prisma.user.count({ where: { role: Role.CUSTOMER, status: UserStatus.SUSPENDED } }),
     prisma.order.count(),
     prisma.order.count({ where: { createdAt: { gte: today } } }),
     prisma.order.count({ where: { status: OrderStatus.SUCCESSFUL } }),
     prisma.order.count({ where: { status: { in: [OrderStatus.PENDING, OrderStatus.PROCESSING] } } }),
     prisma.order.count({ where: { status: OrderStatus.FAILED } }),
-    prisma.bundle.count({ where: { isActive: true, deletedAt: null } }),
-    prisma.network.count({ where: { isActive: true, deletedAt: null } }),
+    prisma.bundle.count({ where: { isActive: true, ...NOT_DELETED } }),
+    prisma.network.count({ where: { isActive: true, ...NOT_DELETED } }),
     prisma.fulfillment.count({
       where: {
         status: { in: [FulfillmentStatus.QUEUED, FulfillmentStatus.PENDING, FulfillmentStatus.PROCESSING] },

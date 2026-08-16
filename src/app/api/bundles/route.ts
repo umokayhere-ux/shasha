@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { handler, ok } from "@/lib/api";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const GET = handler(async (req: Request) => {
   const url = new URL(req.url);
@@ -9,11 +10,11 @@ export const GET = handler(async (req: Request) => {
   const bundles = await prisma.bundle.findMany({
     where: {
       isActive: true,
-      deletedAt: null,
+      ...NOT_DELETED,
       ...(featured ? { isFeatured: true } : {}),
       network: {
         isActive: true,
-        deletedAt: null,
+        ...NOT_DELETED,
         ...(network ? { slug: network } : {}),
       },
     },

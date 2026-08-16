@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export default async function AdminDashboard() {
 
   const [customers, totalOrders, todayOrders, pendingFulfil, failedFulfil, revenue, todayRevenue, recent] =
     await Promise.all([
-      prisma.user.count({ where: { role: "CUSTOMER", deletedAt: null } }),
+      prisma.user.count({ where: { role: "CUSTOMER", ...NOT_DELETED } }),
       prisma.order.count(),
       prisma.order.count({ where: { createdAt: { gte: today } } }),
       prisma.fulfillment.count({ where: { status: { in: ["QUEUED", "PENDING", "PROCESSING"] } } }),

@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
 import { networkTheme } from "@/lib/network-theme";
 import { SignOutButton } from "@/components/SignOutButton";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function CustomerDashboard() {
     prisma.wallet.findUnique({ where: { userId: user.id } }),
     prisma.order.count({ where: { customerId: user.id, status: "SUCCESSFUL" } }),
     prisma.network.findMany({
-      where: { isActive: true, deletedAt: null },
+      where: { isActive: true, ...NOT_DELETED },
       orderBy: { displayOrder: "asc" },
       select: { publicId: true, name: true, slug: true },
     }),

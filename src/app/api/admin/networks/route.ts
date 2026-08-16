@@ -3,11 +3,12 @@ import { handler, ok, parseBody } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth";
 import { networkSchema } from "@/lib/validation";
 import { recordAudit } from "@/lib/audit";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const GET = handler(async () => {
   await requireAdmin();
   const networks = await prisma.network.findMany({
-    where: { deletedAt: null },
+    where: NOT_DELETED,
     orderBy: { displayOrder: "asc" },
     include: { _count: { select: { bundles: true } } },
   });

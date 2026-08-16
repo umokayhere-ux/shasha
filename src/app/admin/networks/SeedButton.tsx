@@ -20,7 +20,11 @@ export function SeedButton({ hasNetworks }: { hasNetworks: boolean }) {
       return;
     }
     setMessage(`${json.data.networks} network(s), ${json.data.bundles} bundle(s) present.`);
+    // router.refresh() can leave the already-rendered server component in place,
+    // which made a successful seed look like it had done nothing. Reload so the
+    // table always reflects what the seed just reported.
     router.refresh();
+    window.location.reload();
   }
 
   return (
