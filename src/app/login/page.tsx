@@ -33,9 +33,13 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
+      <div className="mb-6 text-center">
+        <h1 className="text-3xl font-bold tracking-tight">Shasha</h1>
+        <p className="muted mt-1 text-sm">Data bundles, delivered in seconds.</p>
+      </div>
       <div className="card">
-        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <h2 className="text-xl font-bold">Welcome back</h2>
         <p className="muted mt-1 text-sm">Sign in to buy data and track your orders.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -59,8 +63,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="muted mt-4 text-center text-sm">
-          No account? <Link href="/register" className="font-semibold text-brand-600">Create one</Link>
+        <p className="muted mt-5 text-center text-sm">
+          No account?{" "}
+          <Link href="/register" className="font-semibold" style={{ color: "var(--brand)" }}>
+            Create one
+          </Link>
         </p>
       </div>
     </main>

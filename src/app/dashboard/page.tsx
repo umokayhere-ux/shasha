@@ -27,10 +27,13 @@ export default async function CustomerDashboard() {
     <main className="mx-auto max-w-4xl px-4 py-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Hi, {user.name.split(" ")[0]}</h1>
+          <h1 className="section-title">Hi, {user.name.split(" ")[0]}</h1>
           <p className="muted text-sm">Here is what is happening with your account.</p>
         </div>
-        <Link href="/buy" className="btn-primary">Buy data</Link>
+        <div className="flex gap-2">
+          <Link href="/orders" className="btn-ghost">My orders</Link>
+          <Link href="/buy" className="btn-primary">Buy data</Link>
+        </div>
       </header>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -72,7 +75,7 @@ export default async function CustomerDashboard() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card">
+    <div className="stat">
       <p className="muted text-xs uppercase tracking-wide">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>

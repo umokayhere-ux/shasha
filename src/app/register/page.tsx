@@ -40,8 +40,12 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
+      <div className="mb-6 text-center">
+        <h1 className="text-3xl font-bold tracking-tight">Shasha</h1>
+        <p className="muted mt-1 text-sm">Create an account to start buying data.</p>
+      </div>
       <div className="card">
-        <h1 className="text-2xl font-bold">Create your account</h1>
+        <h2 className="text-xl font-bold">Create your account</h2>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <div>
@@ -74,7 +78,10 @@ export default function RegisterPage() {
         </form>
 
         <p className="muted mt-4 text-center text-sm">
-          Already registered? <Link href="/login" className="font-semibold text-brand-600">Sign in</Link>
+          Already registered?{" "}
+          <Link href="/login" className="font-semibold" style={{ color: "var(--brand)" }}>
+            Sign in
+          </Link>
         </p>
       </div>
     </main>

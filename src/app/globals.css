@@ -3,58 +3,131 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f7f9fc;
+  --bg: #f6f8fb;
   --surface: #ffffff;
-  --text: #0f172a;
+  --surface-2: #f1f5f9;
+  --text: #0b1220;
   --muted: #64748b;
-  --border: #e2e8f0;
+  --border: #e6ebf2;
+  --brand: #1565c0;
+  --brand-soft: #e8f1fd;
+  --ring: rgba(21, 101, 192, 0.28);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b1220;
-    --surface: #131c2e;
-    --text: #e9eef7;
+    --bg: #0a0f1a;
+    --surface: #111827;
+    --surface-2: #172033;
+    --text: #e8eef8;
     --muted: #94a3b8;
-    --border: #24314b;
+    --border: #23304a;
+    --brand: #4f9bee;
+    --brand-soft: #14243a;
+    --ring: rgba(79, 155, 238, 0.3);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 @layer components {
   .card {
-    @apply rounded-xl border p-5;
+    @apply rounded-2xl border p-5;
     background: var(--surface);
     border-color: var(--border);
+    box-shadow: var(--shadow);
   }
+
   .btn {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn text-white;
+    background: var(--brand);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.07);
   }
   .btn-ghost {
     @apply btn border;
-    border-color: var(--border);
-  }
-  .input {
-    @apply w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/25;
     background: var(--surface);
     border-color: var(--border);
     color: var(--text);
   }
+  .btn-ghost:hover {
+    background: var(--surface-2);
+  }
+
+  .input {
+    @apply w-full rounded-xl border px-3.5 py-3 text-base outline-none transition;
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .input:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px var(--ring);
+  }
+
   .label {
     @apply mb-1.5 block text-sm font-medium;
   }
   .muted {
     color: var(--muted);
   }
+
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize;
+  }
+
+  /* Sidebar / nav */
+  .nav-link {
+    @apply flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition;
+    color: var(--muted);
+  }
+  .nav-link:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .nav-link-active {
+    background: var(--brand-soft);
+    color: var(--brand);
+    font-weight: 600;
+  }
+
+  .stat {
+    @apply rounded-2xl border p-4;
+    background: var(--surface);
+    border-color: var(--border);
+  }
+
+  .table-wrap {
+    @apply -mx-5 overflow-x-auto px-5;
+  }
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table thead th {
+    @apply whitespace-nowrap pb-3 text-xs font-semibold uppercase tracking-wide;
+    color: var(--muted);
+  }
+  .table tbody td {
+    @apply whitespace-nowrap py-3;
+    border-top: 1px solid var(--border);
+  }
+
+  .section-title {
+    @apply text-xl font-bold tracking-tight sm:text-2xl;
   }
 }
