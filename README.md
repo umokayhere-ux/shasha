@@ -224,8 +224,18 @@ The app targets Vercel's serverless model. Three things are load-bearing:
    Network Access, Vercel's egress IPs are dynamic, so either allow `0.0.0.0/0`
    with a strong database password or use an Atlas private endpoint.
 
-2. **Run schema and admin setup locally**, pointed at Atlas — neither can run on
-   Vercel:
+2. **Provision the database.** Two options.
+
+   **From a browser (no terminal needed):** deploy first, then visit `/setup` on
+   the deployment. It asks for your `CRON_SECRET`, creates the unique indexes,
+   seeds the catalog, and creates the Super Admin. It is one-shot — once an
+   admin exists the endpoint returns 409 permanently, so a leaked token cannot
+   mint a second owner. Prefer `db push` when you have a terminal: it derives
+   indexes from the schema, whereas `/setup` applies a hand-maintained list in
+   `src/lib/setup/indexes.ts` that must be updated if the schema gains a new
+   unique constraint.
+
+   **From a terminal**, pointed at Atlas — neither command can run on Vercel:
    ```bash
    DATABASE_URL="<atlas-url>" npm run db:push
    DATABASE_URL="<atlas-url>" npm run db:seed        # optional, test data only
