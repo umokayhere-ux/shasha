@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
 import { networkTheme } from "@/lib/network-theme";
+import { NetworkLogo } from "@/components/NetworkLogo";
 import { SignOutButton } from "@/components/SignOutButton";
 import { NOT_DELETED } from "@/lib/not-deleted";
 import { BUSINESS_NAME } from "@/lib/branding";
@@ -86,32 +87,25 @@ export default async function CustomerDashboard() {
               <Link
                 key={n.publicId}
                 href="/buy"
-                className="flex flex-col items-center gap-2 rounded-2xl p-4 transition active:scale-[0.98]"
+                className="flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl p-2 transition active:scale-[0.98]"
                 style={{
                   background: t.bg,
                   border: `1px solid ${t.surfaceBorder}`,
                   boxShadow: "0 10px 24px rgba(2,6,23,0.12)",
                 }}
               >
-                {n.logoUrl ? (
-                  <span className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-white p-1">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- stored inline as a data URI */}
-                    <img
-                      src={n.logoUrl}
-                      alt={`${n.name} logo`}
-                      className="h-full w-full object-contain"
-                    />
-                  </span>
-                ) : (
-                  <span
-                    aria-hidden
-                    className="grid h-11 w-11 place-items-center rounded-xl text-[9px] font-black"
-                    style={{ background: t.accent, color: t.onAccent }}
-                  >
-                    {t.mark}
-                  </span>
-                )}
-                <span className="text-xs font-bold" style={{ color: t.text }}>
+                {/* The logo is the tile: it takes the whole card, name underneath. */}
+                <NetworkLogo
+                  theme={t}
+                  logoUrl={n.logoUrl}
+                  name={n.name}
+                  className="h-full w-full flex-1"
+                  rounded="rounded-xl"
+                />
+                <span
+                  className="shrink-0 text-[11px] font-bold leading-none"
+                  style={{ color: t.text }}
+                >
                   {n.name}
                 </span>
               </Link>

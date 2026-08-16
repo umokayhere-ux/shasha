@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import { networkTheme, type NetworkTheme } from "@/lib/network-theme";
+import { NetworkLogo } from "@/components/NetworkLogo";
 
 interface Bundle {
   publicId: string;
@@ -98,7 +99,12 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
                   boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
                 }}
               >
-                <LogoTile theme={t} logoUrl={n.logoUrl} name={n.name} />
+                <NetworkLogo
+                  theme={t}
+                  logoUrl={n.logoUrl}
+                  name={n.name}
+                  className="h-16 w-16 shrink-0"
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block text-lg font-bold" style={{ color: t.text }}>
                     {n.name}
@@ -142,7 +148,12 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
           >
             ←
           </button>
-          <LogoTile theme={theme} logoUrl={network.logoUrl} name={network.name} />
+          <NetworkLogo
+            theme={theme}
+            logoUrl={network.logoUrl}
+            name={network.name}
+            className="h-12 w-12 shrink-0"
+          />
           <div>
             <p className="text-xl font-extrabold" style={{ color: theme.accent }}>
               {network.name}
@@ -300,38 +311,6 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * Network mark. Uses the uploaded logo when one exists, otherwise falls back to
- * the wordmark tile so a network without a logo still renders on brand.
- */
-function LogoTile({
-  theme,
-  logoUrl,
-  name,
-}: {
-  theme: NetworkTheme;
-  logoUrl?: string | null;
-  name?: string;
-}) {
-  if (logoUrl) {
-    return (
-      <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white p-1">
-        {/* eslint-disable-next-line @next/next/no-img-element -- stored inline as a data URI */}
-        <img src={logoUrl} alt={name ? `${name} logo` : ""} className="h-full w-full object-contain" />
-      </span>
-    );
-  }
-  return (
-    <span
-      aria-hidden
-      className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-[10px] font-black tracking-tight"
-      style={{ background: theme.accent, color: theme.onAccent }}
-    >
-      {theme.mark}
-    </span>
   );
 }
 
