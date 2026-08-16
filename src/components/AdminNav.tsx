@@ -11,6 +11,7 @@ const NAV: Array<[string, string, string]> = [
   ["Networks", "/admin/networks", "📶"],
   ["Data Bundles", "/admin/bundles", "📦"],
   ["Payments", "/admin/payments", "💳"],
+  ["Subaccounts", "/admin/subaccounts", "🏦"],
   ["Wallets", "/admin/wallets", "👛"],
   ["Reports", "/admin/reports", "📈"],
   ["Audit Logs", "/admin/audit-logs", "🔒"],
