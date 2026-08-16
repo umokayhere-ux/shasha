@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { formatMoney } from "@/lib/money";
+import { networkTheme, type NetworkTheme } from "@/lib/network-theme";
 
 interface Bundle {
   publicId: string;
@@ -29,9 +31,11 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const theme = network ? networkTheme(network.slug) : null;
+
   /**
-   * Sends only the bundle id, recipient and promo code. The amount shown below
-   * is a preview — the server re-reads the price and computes the real charge.
+   * Sends only the bundle id, recipient and promo code. The price shown is a
+   * preview — the server re-reads it and decides the real charge.
    */
   async function submit() {
     if (!bundle || submitting) return;
@@ -64,41 +68,96 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
     }
   }
 
-  return (
-    <main className="mx-auto max-w-lg px-4 py-8">
-      <ol className="muted mb-6 flex gap-2 text-xs font-semibold uppercase tracking-wide">
-        {(["network", "bundle", "recipient", "summary"] as Step[]).map((s, i) => (
-          <li key={s} className={step === s ? "text-brand-600" : undefined}>
-            {i + 1}. {s}
-          </li>
-        ))}
-      </ol>
+  // --- Step 1: network picker, on the neutral platform theme ---
+  if (step === "network" || !network || !theme) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-8">
+        <header className="mb-6">
+          <p className="muted text-sm font-medium uppercase tracking-widest">Buy data</p>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight">
+            Choose your network
+          </h1>
+        </header>
 
-      {step === "network" && (
-        <section>
-          <h1 className="mb-4 text-xl font-bold">Choose a network</h1>
-          <div className="grid grid-cols-2 gap-3">
-            {networks.map((n) => (
+        <div className="grid gap-3">
+          {networks.map((n) => {
+            const t = networkTheme(n.slug);
+            return (
               <button
                 key={n.publicId}
                 onClick={() => {
                   setNetwork(n);
+                  setBundle(null);
                   setStep("bundle");
                 }}
-                className="card min-h-20 font-semibold hover:border-brand-500"
+                className="flex items-center gap-4 rounded-2xl p-4 text-left transition active:scale-[0.99]"
+                style={{
+                  background: t.bg,
+                  border: `1px solid ${t.surfaceBorder}`,
+                  boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
+                }}
               >
-                {n.name}
+                <LogoTile theme={t} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-lg font-bold" style={{ color: t.text }}>
+                    {n.name}
+                  </span>
+                  <span className="block text-sm" style={{ color: t.muted }}>
+                    {n.bundles.length} bundle{n.bundles.length === 1 ? "" : "s"} available
+                  </span>
+                </span>
+                <span aria-hidden className="text-xl font-bold" style={{ color: t.accent }}>
+                  →
+                </span>
               </button>
-            ))}
-          </div>
-          {networks.length === 0 && <p className="muted">No networks are available right now.</p>}
-        </section>
-      )}
+            );
+          })}
+          {networks.length === 0 && (
+            <p className="muted">No networks are available right now.</p>
+          )}
+        </div>
 
-      {step === "bundle" && network && (
-        <section>
-          <h1 className="mb-4 text-xl font-bold">{network.name} bundles</h1>
-          <div className="space-y-3">
+        <Link href="/dashboard" className="btn-ghost mt-6 w-full">
+          Back to dashboard
+        </Link>
+      </main>
+    );
+  }
+
+  // --- Steps 2-4: full network takeover ---
+  return (
+    <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
+      <div className="mx-auto max-w-lg px-4 py-6">
+        <header className="mb-6 flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (step === "bundle") setStep("network");
+              else if (step === "recipient") setStep("bundle");
+              else setStep("recipient");
+            }}
+            aria-label="Back"
+            className="rounded-full px-3 py-2 text-lg font-bold"
+            style={{ background: theme.surface, color: theme.accent }}
+          >
+            ←
+          </button>
+          <LogoTile theme={theme} />
+          <div>
+            <p className="text-xl font-extrabold" style={{ color: theme.accent }}>
+              {network.name}
+            </p>
+            <p className="text-xs" style={{ color: theme.muted }}>
+              {step === "bundle"
+                ? "Select a bundle"
+                : step === "recipient"
+                  ? "Recipient number"
+                  : "Confirm order"}
+            </p>
+          </div>
+        </header>
+
+        {step === "bundle" && (
+          <section className="grid gap-3">
             {network.bundles.map((b) => (
               <button
                 key={b.publicId}
@@ -106,106 +165,161 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
                   setBundle(b);
                   setStep("recipient");
                 }}
-                className="card flex w-full items-center justify-between text-left hover:border-brand-500"
+                className="flex items-center justify-between rounded-2xl p-4 text-left transition active:scale-[0.99]"
+                style={{
+                  background: theme.surface,
+                  border: `1px solid ${theme.surfaceBorder}`,
+                }}
               >
                 <span>
-                  <span className="block font-semibold">{b.name}</span>
-                  <span className="muted text-sm">Valid {b.validityDays} days</span>
+                  <span className="block text-2xl font-extrabold" style={{ color: theme.text }}>
+                    {b.name}
+                  </span>
+                  <span className="block text-xs" style={{ color: theme.muted }}>
+                    Valid for {b.validityDays} days
+                  </span>
                 </span>
-                <span className="text-lg font-bold">{formatMoney(b.sellingPrice)}</span>
+                <span
+                  className="rounded-xl px-3 py-2 text-base font-extrabold"
+                  style={{ background: theme.accent, color: theme.onAccent }}
+                >
+                  {formatMoney(b.sellingPrice)}
+                </span>
               </button>
             ))}
             {network.bundles.length === 0 && (
-              <p className="muted">No bundles available for this network yet.</p>
+              <p style={{ color: theme.muted }}>No bundles available for this network yet.</p>
             )}
-          </div>
-          <button onClick={() => setStep("network")} className="btn-ghost mt-4">
-            Back
-          </button>
-        </section>
-      )}
+          </section>
+        )}
 
-      {step === "recipient" && bundle && (
-        <section>
-          <h1 className="mb-4 text-xl font-bold">Who is this data for?</h1>
-          <label className="label" htmlFor="phone">
-            Recipient phone number
-          </label>
-          <input
-            id="phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            inputMode="tel"
-            placeholder="0XXXXXXXXX"
-            className="input"
-          />
-          <label className="label mt-4" htmlFor="promo">
-            Promo code (optional)
-          </label>
-          <input
-            id="promo"
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-            className="input"
-          />
-          <div className="mt-4 flex gap-2">
-            <button onClick={() => setStep("bundle")} className="btn-ghost flex-1">
-              Back
-            </button>
+        {step === "recipient" && bundle && (
+          <section>
+            <div
+              className="mb-5 rounded-2xl p-4"
+              style={{ background: theme.surface, border: `1px solid ${theme.surfaceBorder}` }}
+            >
+              <p className="text-sm" style={{ color: theme.muted }}>
+                Selected
+              </p>
+              <p className="text-xl font-extrabold">
+                {bundle.name} ·{" "}
+                <span style={{ color: theme.accent }}>{formatMoney(bundle.sellingPrice)}</span>
+              </p>
+            </div>
+
+            <label className="mb-1.5 block text-sm font-semibold" htmlFor="phone">
+              Send data to
+            </label>
+            <input
+              id="phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              inputMode="tel"
+              placeholder="0XXXXXXXXX"
+              className="w-full rounded-xl px-4 py-3.5 text-lg font-semibold outline-none"
+              style={{
+                background: theme.surface,
+                border: `1px solid ${theme.surfaceBorder}`,
+                color: theme.text,
+              }}
+            />
+
+            <label className="mb-1.5 mt-4 block text-sm font-semibold" htmlFor="promo">
+              Promo code <span style={{ color: theme.muted }}>(optional)</span>
+            </label>
+            <input
+              id="promo"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+              className="w-full rounded-xl px-4 py-3.5 outline-none"
+              style={{
+                background: theme.surface,
+                border: `1px solid ${theme.surfaceBorder}`,
+                color: theme.text,
+              }}
+            />
+
             <button
               onClick={() => setStep("summary")}
               disabled={!/^(?:\+?233|0)\d{9}$/.test(phone.replace(/[\s-]/g, ""))}
-              className="btn-primary flex-1"
+              className="mt-6 w-full rounded-xl py-4 text-base font-extrabold transition active:scale-[0.99] disabled:opacity-40"
+              style={{ background: theme.accent, color: theme.onAccent }}
             >
               Continue
             </button>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {step === "summary" && bundle && network && (
-        <section>
-          <h1 className="mb-4 text-xl font-bold">Confirm your order</h1>
-          <div className="card space-y-2 text-sm">
-            <Row label="Network" value={network.name} />
-            <Row label="Bundle" value={bundle.name} />
-            <Row label="Validity" value={`${bundle.validityDays} days`} />
-            <Row label="Recipient" value={phone} />
-            {promoCode && <Row label="Promo code" value={promoCode} />}
-            <div className="flex justify-between border-t pt-3 text-base font-bold">
-              <span>Total</span>
-              <span>{formatMoney(bundle.sellingPrice)}</span>
+        {step === "summary" && bundle && (
+          <section>
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: theme.surface, border: `1px solid ${theme.surfaceBorder}` }}
+            >
+              <Row theme={theme} label="Network" value={network.name} />
+              <Row theme={theme} label="Bundle" value={bundle.name} />
+              <Row theme={theme} label="Validity" value={`${bundle.validityDays} days`} />
+              <Row theme={theme} label="Recipient" value={phone} />
+              {promoCode && <Row theme={theme} label="Promo code" value={promoCode} />}
+
+              <div
+                className="mt-3 flex items-center justify-between border-t pt-4"
+                style={{ borderColor: theme.surfaceBorder }}
+              >
+                <span className="text-sm font-semibold">Total</span>
+                <span className="text-2xl font-extrabold" style={{ color: theme.accent }}>
+                  {formatMoney(bundle.sellingPrice)}
+                </span>
+              </div>
+              <p className="mt-2 text-xs" style={{ color: theme.muted }}>
+                Any promo discount is confirmed at checkout.
+              </p>
             </div>
-            <p className="muted text-xs">
-              Any promo discount is applied and confirmed at checkout.
-            </p>
-          </div>
 
-          {error && (
-            <p role="alert" className="mt-4 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-800">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl px-4 py-3 text-sm font-medium"
+                style={{ background: "#7f1d1d", color: "#fee2e2" }}
+              >
+                {error}
+              </p>
+            )}
 
-          <div className="mt-4 flex gap-2">
-            <button onClick={() => setStep("recipient")} className="btn-ghost flex-1">
-              Back
+            <button
+              onClick={submit}
+              disabled={submitting}
+              className="mt-6 w-full rounded-xl py-4 text-base font-extrabold transition active:scale-[0.99] disabled:opacity-50"
+              style={{ background: theme.accent, color: theme.onAccent }}
+            >
+              {submitting ? "Starting payment…" : `Pay ${formatMoney(bundle.sellingPrice)}`}
             </button>
-            <button onClick={submit} disabled={submitting} className="btn-primary flex-1">
-              {submitting ? "Starting payment…" : "Pay now"}
-            </button>
-          </div>
-        </section>
-      )}
-    </main>
+          </section>
+        )}
+      </div>
+    </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+/** Network mark: accent tile with the network wordmark. */
+function LogoTile({ theme }: { theme: NetworkTheme }) {
   return (
-    <div className="flex justify-between">
-      <span className="muted">{label}</span>
-      <span className="font-medium">{value}</span>
+    <span
+      aria-hidden
+      className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-[10px] font-black tracking-tight"
+      style={{ background: theme.accent, color: theme.onAccent }}
+    >
+      {theme.mark}
+    </span>
+  );
+}
+
+function Row({ theme, label, value }: { theme: NetworkTheme; label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm">
+      <span style={{ color: theme.muted }}>{label}</span>
+      <span className="font-semibold">{value}</span>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
+import { networkTheme } from "@/lib/network-theme";
+import { SignOutButton } from "@/components/SignOutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -12,56 +14,124 @@ export default async function CustomerDashboard() {
   if (!user) redirect("/login");
   if (user.role !== "CUSTOMER") redirect("/admin");
 
-  const [orders, wallet, unread, successful] = await Promise.all([
+  const [orders, wallet, successful, networks] = await Promise.all([
     prisma.order.findMany({
       where: { customerId: user.id },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
     prisma.wallet.findUnique({ where: { userId: user.id } }),
-    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
     prisma.order.count({ where: { customerId: user.id, status: "SUCCESSFUL" } }),
+    prisma.network.findMany({
+      where: { isActive: true, deletedAt: null },
+      orderBy: { displayOrder: "asc" },
+      select: { publicId: true, name: true, slug: true },
+    }),
   ]);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <main className="mx-auto max-w-3xl px-4 py-6">
+      <header className="mb-6 flex items-start justify-between gap-3">
         <div>
-          <h1 className="section-title">Hi, {user.name.split(" ")[0]}</h1>
-          <p className="muted text-sm">Here is what is happening with your account.</p>
+          <p className="muted text-sm">Welcome back</p>
+          <h1 className="text-2xl font-extrabold tracking-tight">
+            {user.name.split(" ")[0]}
+          </h1>
         </div>
         <div className="flex gap-2">
-          <Link href="/orders" className="btn-ghost">My orders</Link>
-          <Link href="/buy" className="btn-primary">Buy data</Link>
+          <Link href="/orders" className="btn-ghost">
+            Orders
+          </Link>
+          <SignOutButton />
         </div>
       </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Wallet" value={formatMoney(wallet?.balance ?? 0)} />
-        <Stat label="Successful" value={String(successful)} />
-        <Stat label="Total orders" value={String(orders.length)} />
-        <Stat label="Unread" value={String(unread)} />
-      </div>
+      {/* Balance hero */}
+      <section
+        className="mb-6 rounded-3xl p-6 text-white"
+        style={{
+          background: "linear-gradient(135deg, #1565c0 0%, #0d47a1 55%, #06305f 100%)",
+          boxShadow: "0 18px 40px rgba(13, 71, 161, 0.32)",
+        }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-widest opacity-75">
+          Wallet balance
+        </p>
+        <p className="mt-1 text-4xl font-extrabold tracking-tight">
+          {formatMoney(wallet?.balance ?? 0)}
+        </p>
+        <div className="mt-5 flex gap-6 text-sm">
+          <span>
+            <span className="block text-xl font-bold">{successful}</span>
+            <span className="opacity-75">Delivered</span>
+          </span>
+          <span>
+            <span className="block text-xl font-bold">{orders.length}</span>
+            <span className="opacity-75">Recent</span>
+          </span>
+        </div>
+      </section>
+
+      {/* Network quick-buy, in each network's own colours */}
+      <section className="mb-6">
+        <h2 className="mb-3 text-lg font-bold">Buy data</h2>
+        <div className="grid grid-cols-3 gap-3">
+          {networks.map((n) => {
+            const t = networkTheme(n.slug);
+            return (
+              <Link
+                key={n.publicId}
+                href="/buy"
+                className="flex flex-col items-center gap-2 rounded-2xl p-4 transition active:scale-[0.98]"
+                style={{
+                  background: t.bg,
+                  border: `1px solid ${t.surfaceBorder}`,
+                  boxShadow: "0 10px 24px rgba(2,6,23,0.12)",
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="grid h-11 w-11 place-items-center rounded-xl text-[9px] font-black"
+                  style={{ background: t.accent, color: t.onAccent }}
+                >
+                  {t.mark}
+                </span>
+                <span className="text-xs font-bold" style={{ color: t.text }}>
+                  {n.name}
+                </span>
+              </Link>
+            );
+          })}
+          {networks.length === 0 && (
+            <p className="muted col-span-3 text-sm">No networks available yet.</p>
+          )}
+        </div>
+      </section>
 
       <section className="card">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-semibold">Recent orders</h2>
-          <Link href="/orders" className="text-sm font-semibold text-brand-600">View all</Link>
+          <h2 className="font-bold">Recent orders</h2>
+          <Link href="/orders" className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
+            View all
+          </Link>
         </div>
         {orders.length === 0 ? (
-          <p className="muted text-sm">No orders yet.</p>
+          <p className="muted py-6 text-center text-sm">
+            No orders yet — pick a network above to get started.
+          </p>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
             {orders.map((order) => (
-              <li key={order.publicId} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium">
+              <li key={order.publicId} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
                     {order.networkNameSnapshot} {order.bundleNameSnapshot}
                   </p>
                   <p className="muted text-xs">{order.recipientPhone}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold">{formatMoney(order.finalAmount)}</span>
+                <div className="flex shrink-0 items-center gap-3">
+                  {/* Amount actually charged, from the order's own snapshot. */}
+                  <span className="text-sm font-bold">{formatMoney(order.finalAmount)}</span>
                   <StatusBadge status={order.status} />
                 </div>
               </li>
@@ -70,14 +140,5 @@ export default async function CustomerDashboard() {
         )}
       </section>
     </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat">
-      <p className="muted text-xs uppercase tracking-wide">{label}</p>
-      <p className="mt-1 text-lg font-bold">{value}</p>
-    </div>
   );
 }
