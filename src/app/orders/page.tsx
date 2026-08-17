@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
+import { CustomerTabBar } from "@/components/CustomerTabBar";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export default async function OrdersPage() {
           ))}
         </ul>
       )}
+      <CustomerTabBar />
     </main>
   );
 }

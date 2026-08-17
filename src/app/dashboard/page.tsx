@@ -6,7 +6,7 @@ import { formatMoney } from "@/lib/money";
 import { StatusBadge } from "@/components/StatusBadge";
 import { networkTheme } from "@/lib/network-theme";
 import { NetworkLogo } from "@/components/NetworkLogo";
-import { SignOutButton } from "@/components/SignOutButton";
+import { CustomerTabBar } from "@/components/CustomerTabBar";
 import { NOT_DELETED } from "@/lib/not-deleted";
 import { BUSINESS_NAME } from "@/lib/branding";
 
@@ -17,14 +17,21 @@ export default async function CustomerDashboard() {
   if (!user) redirect("/login");
   if (user.role !== "CUSTOMER") redirect("/admin");
 
-  const [orders, wallet, successful, networks] = await Promise.all([
+  const [orders, spend, delivered, unread, networks] = await Promise.all([
     prisma.order.findMany({
       where: { customerId: user.id },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
-    prisma.wallet.findUnique({ where: { userId: user.id } }),
+    // The headline figure is lifetime spend on data, counting only orders the
+    // customer actually paid for.
+    prisma.order.aggregate({
+      where: { customerId: user.id, paymentStatus: "PAID" },
+      _sum: { finalAmount: true },
+      _count: true,
+    }),
     prisma.order.count({ where: { customerId: user.id, status: "SUCCESSFUL" } }),
+    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
     prisma.network.findMany({
       where: { isActive: true, ...NOT_DELETED },
       orderBy: { displayOrder: "asc" },
@@ -32,122 +39,160 @@ export default async function CustomerDashboard() {
     }),
   ]);
 
+  const totalSpent = spend._sum.finalAmount ?? 0;
+  const firstName = user.name.split(" ")[0];
+
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6">
-      <header className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-lg font-extrabold tracking-tight" style={{ color: "var(--brand)" }}>
-            {BUSINESS_NAME}
-          </p>
-          <p className="muted mt-0.5 text-sm">
-            Welcome back, <span className="font-semibold">{user.name.split(" ")[0]}</span>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/orders" className="btn-ghost">
-            Orders
+    <div className="min-h-screen">
+      {/* Deep header carrying the greeting and the headline figure */}
+      <header
+        className="rounded-b-[2rem] px-5 pb-8 pt-6"
+        style={{ background: "var(--cust-deep)", color: "var(--cust-on-deep)" }}
+      >
+        <div className="mx-auto flex max-w-lg items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span
+              className="grid h-11 w-11 place-items-center rounded-full text-base font-extrabold"
+              style={{ background: "var(--cust-lime)", color: "var(--cust-deep)" }}
+            >
+              {firstName.charAt(0).toUpperCase()}
+            </span>
+            <div>
+              <p className="text-sm opacity-80">Hello,</p>
+              <p className="text-lg font-bold leading-tight">{firstName}</p>
+            </div>
+          </div>
+
+          <Link
+            href="/notifications"
+            aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
+            className="relative grid h-11 w-11 place-items-center rounded-full text-lg"
+            style={{ background: "var(--cust-lime)", color: "var(--cust-deep)" }}
+          >
+            🔔
+            {unread > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
           </Link>
-          <SignOutButton />
+        </div>
+
+        <div className="mx-auto mt-7 max-w-lg text-center">
+          <p className="text-sm font-medium" style={{ color: "var(--cust-lime)" }}>
+            Total spent on data
+          </p>
+          <p className="mt-1 text-4xl font-extrabold tracking-tight">{formatMoney(totalSpent)}</p>
+          <p className="mt-1 text-xs opacity-70">
+            {spend._count} purchase{spend._count === 1 ? "" : "s"} · {delivered} delivered
+          </p>
+
+          <div className="mt-6 flex justify-center gap-3">
+            <Link
+              href="/buy"
+              className="rounded-full px-7 py-3 text-sm font-extrabold"
+              style={{ background: "var(--cust-lime)", color: "var(--cust-deep)" }}
+            >
+              Buy data
+            </Link>
+            <Link
+              href="/orders"
+              className="rounded-full px-7 py-3 text-sm font-extrabold"
+              style={{
+                background: "transparent",
+                color: "var(--cust-on-deep)",
+                border: "1px solid rgba(255,255,255,0.35)",
+              }}
+            >
+              My orders
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* Balance hero */}
-      <section
-        className="mb-6 rounded-3xl p-6 text-white"
-        style={{
-          background: "linear-gradient(135deg, #1565c0 0%, #0d47a1 55%, #06305f 100%)",
-          boxShadow: "0 18px 40px rgba(13, 71, 161, 0.32)",
-        }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-widest opacity-75">
-          Wallet balance
-        </p>
-        <p className="mt-1 text-4xl font-extrabold tracking-tight">
-          {formatMoney(wallet?.balance ?? 0)}
-        </p>
-        <div className="mt-5 flex gap-6 text-sm">
-          <span>
-            <span className="block text-xl font-bold">{successful}</span>
-            <span className="opacity-75">Delivered</span>
-          </span>
-          <span>
-            <span className="block text-xl font-bold">{orders.length}</span>
-            <span className="opacity-75">Recent</span>
-          </span>
-        </div>
-      </section>
-
-      {/* Network quick-buy, in each network's own colours */}
-      <section className="mb-6">
-        <h2 className="mb-3 text-lg font-bold">Buy data</h2>
-        <div className="grid grid-cols-3 gap-3">
-          {networks.map((n) => {
-            const t = networkTheme(n.slug);
-            return (
-              <Link
-                key={n.publicId}
-                href="/buy"
-                className="flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl p-2 transition active:scale-[0.98]"
-                style={{
-                  background: t.bg,
-                  border: `1px solid ${t.surfaceBorder}`,
-                  boxShadow: "0 10px 24px rgba(2,6,23,0.12)",
-                }}
-              >
-                {/* The logo is the tile: it takes the whole card, name underneath. */}
-                <NetworkLogo
-                  theme={t}
-                  logoUrl={n.logoUrl}
-                  name={n.name}
-                  className="h-full w-full flex-1"
-                  rounded="rounded-xl"
-                />
-                <span
-                  className="shrink-0 text-[11px] font-bold leading-none"
-                  style={{ color: t.text }}
+      <main className="mx-auto max-w-lg px-4 py-6">
+        {/* Network quick-buy, in each network's own colours */}
+        <section className="card mb-5">
+          <h2 className="mb-3 text-sm font-bold">Buy by network</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {networks.map((n) => {
+              const t = networkTheme(n.slug);
+              return (
+                <Link
+                  key={n.publicId}
+                  href="/buy"
+                  className="flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl p-2 transition active:scale-[0.98]"
+                  style={{ background: t.bg, border: `1px solid ${t.surfaceBorder}` }}
                 >
-                  {n.name}
-                </span>
-              </Link>
-            );
-          })}
-          {networks.length === 0 && (
-            <p className="muted col-span-3 text-sm">No networks available yet.</p>
-          )}
-        </div>
-      </section>
+                  <NetworkLogo
+                    theme={t}
+                    logoUrl={n.logoUrl}
+                    name={n.name}
+                    className="h-full w-full flex-1"
+                    rounded="rounded-xl"
+                  />
+                  <span className="shrink-0 text-[11px] font-bold" style={{ color: t.text }}>
+                    {n.name}
+                  </span>
+                </Link>
+              );
+            })}
+            {networks.length === 0 && (
+              <p className="muted col-span-3 text-sm">No networks available yet.</p>
+            )}
+          </div>
+        </section>
 
-      <section className="card">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-bold">Recent orders</h2>
-          <Link href="/orders" className="text-sm font-semibold" style={{ color: "var(--brand)" }}>
-            View all
-          </Link>
-        </div>
-        {orders.length === 0 ? (
-          <p className="muted py-6 text-center text-sm">
-            No orders yet — pick a network above to get started.
-          </p>
-        ) : (
-          <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
-            {orders.map((order) => (
-              <li key={order.publicId} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {order.networkNameSnapshot} {order.bundleNameSnapshot}
-                  </p>
-                  <p className="muted text-xs">{order.recipientPhone}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {/* Amount actually charged, from the order's own snapshot. */}
-                  <span className="text-sm font-bold">{formatMoney(order.finalAmount)}</span>
-                  <StatusBadge status={order.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+        <section className="card">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-bold">Recent purchases</h2>
+            <Link href="/orders" className="text-xs font-bold" style={{ color: "var(--brand)" }}>
+              See all
+            </Link>
+          </div>
+
+          {orders.length === 0 ? (
+            <p className="muted py-8 text-center text-sm">
+              No purchases yet — tap Buy data to get started.
+            </p>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {orders.map((order) => {
+                const t = networkTheme(order.networkNameSnapshot.toLowerCase());
+                return (
+                  <li key={order.publicId} className="flex items-center gap-3 py-3">
+                    <span
+                      aria-hidden
+                      className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[9px] font-black"
+                      style={{ background: t.accent, color: t.onAccent }}
+                    >
+                      {t.mark}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold">
+                        {order.networkNameSnapshot} {order.bundleNameSnapshot}
+                      </p>
+                      <p className="muted truncate text-xs">
+                        To {order.recipientPhone} ·{" "}
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {/* Amount actually charged, from the order's own snapshot. */}
+                      <p className="text-sm font-extrabold">{formatMoney(order.finalAmount)}</p>
+                      <StatusBadge status={order.status} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <p className="muted mt-6 text-center text-xs">{BUSINESS_NAME}</p>
+      </main>
+
+      <CustomerTabBar />
+    </div>
   );
 }

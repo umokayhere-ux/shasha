@@ -6,7 +6,7 @@ export function SignOutButton() {
     window.location.href = "/login";
   }
   return (
-    <button onClick={signOut} className="btn-ghost">
+    <button onClick={signOut} className="btn-ghost w-full">
       Sign out
     </button>
   );
