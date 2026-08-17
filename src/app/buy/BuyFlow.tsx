@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import { networkTheme, type NetworkTheme } from "@/lib/network-theme";
-import { NetworkLogo } from "@/components/NetworkLogo";
 
 interface Bundle {
   publicId: string;
@@ -98,12 +97,23 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
                   boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
                 }}
               >
-                <NetworkLogo
-                  theme={t}
-                  logoUrl={n.logoUrl}
-                  name={n.name}
-                  className="h-16 w-16 shrink-0"
-                />
+                <span
+                  className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl"
+                  style={{ background: t.bg }}
+                >
+                  {n.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- data URI
+                    <img src={n.logoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="text-[10px] font-black"
+                      style={{ color: t.accent }}
+                    >
+                      {t.mark}
+                    </span>
+                  )}
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-lg font-bold" style={{ color: t.text }}>
                     {n.name}
@@ -147,12 +157,19 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
           >
             ←
           </button>
-          <NetworkLogo
-            theme={theme}
-            logoUrl={network.logoUrl}
-            name={network.name}
-            className="h-12 w-12 shrink-0"
-          />
+          <span
+            className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl"
+            style={{ background: theme.surface }}
+          >
+            {network.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- data URI
+              <img src={network.logoUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <span aria-hidden className="text-[9px] font-black" style={{ color: theme.accent }}>
+                {theme.mark}
+              </span>
+            )}
+          </span>
           <div>
             <p className="text-xl font-extrabold" style={{ color: theme.accent }}>
               {network.name}
