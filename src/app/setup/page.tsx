@@ -54,7 +54,7 @@ export default function SetupPage() {
           </ul>
 
           {result.indexes.failed.length > 0 && (
-            <div className="mt-4 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">
+            <div className="alert-warn mt-4">
               <p className="font-semibold">Some indexes were not created:</p>
               <ul className="mt-1 list-disc pl-4">
                 {result.indexes.failed.map((f) => (
@@ -126,7 +126,7 @@ export default function SetupPage() {
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-800">
+            <p role="alert" className="alert-error">
               {error}
             </p>
           )}

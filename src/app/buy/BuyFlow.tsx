@@ -325,7 +325,7 @@ export function BuyFlow({
               <p
                 role="alert"
                 className="mt-4 rounded-xl px-4 py-3 text-sm font-medium"
-                style={{ background: "#7f1d1d", color: "#fee2e2" }}
+                style={{ background: "var(--danger)", color: "#ffffff" }}
               >
                 {error}
               </p>

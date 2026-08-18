@@ -52,7 +52,7 @@ export default async function AdminNetworksPage() {
                     <td>{n._count.bundles}</td>
                     <td>{n._count.orders}</td>
                     <td>
-                      <span className={`badge ${n.isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>
+                      <span className={`${n.isActive ? "badge-ok" : "badge-neutral"}`}>
                         {n.isActive ? "active" : "inactive"}
                       </span>
                     </td>

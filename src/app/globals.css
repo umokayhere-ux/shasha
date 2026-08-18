@@ -2,38 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Brand palette. These hexes are the single source of truth — components read
+ * the tokens rather than hard-coding colours, so a future change lands here
+ * once instead of across every file.
+ */
 :root {
-  --bg: #f6f8fb;
-  --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --text: #0b1220;
-  --muted: #64748b;
-  --border: #e6ebf2;
-  --brand: #1565c0;
-  --brand-soft: #e8f1fd;
-  --ring: rgba(21, 101, 192, 0.28);
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
-
-  /* Customer app palette: deep green canvas with a lime accent. */
-  --cust-deep: #0d4a35;
-  --cust-deep-2: #0a3b2a;
-  --cust-lime: #c8f169;
+  /* Core */
+  --cust-deep: #064e3b; /* Deep Emerald — header, bottom nav */
+  --cust-deep-2: #043d2e;
+  --cust-lime: #c7f36a; /* Lime Green — primary buttons */
   --cust-on-deep: #ffffff;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0f1a;
-    --surface: #111827;
-    --surface-2: #172033;
-    --text: #e8eef8;
-    --muted: #94a3b8;
-    --border: #23304a;
-    --brand: #4f9bee;
-    --brand-soft: #14243a;
-    --ring: rgba(79, 155, 238, 0.3);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
-  }
+  --bg: #f7f8fa; /* Page background */
+  --surface: #ffffff; /* Cards */
+  --surface-2: #eef0f4;
+  --text: #111827; /* Main text */
+  --muted: #6b7280; /* Secondary text */
+  --border: #e6e8ee;
+
+  --brand: #2563eb; /* Links / active blue */
+  --brand-soft: #e8effd;
+  --ring: rgba(37, 99, 235, 0.25);
+
+  /* Status */
+  --success: #16a34a;
+  --success-soft: #e7f6ec;
+  --warning: #f59e0b;
+  --warning-soft: #fdf3e0;
+  --danger: #dc2626;
+  --danger-soft: #fbe9e9;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
 }
 
 html {
@@ -59,11 +59,12 @@ body {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply btn text-white;
-    background: var(--brand);
+    @apply btn;
+    background: var(--cust-lime);
+    color: var(--cust-deep);
   }
   .btn-primary:hover {
-    filter: brightness(1.07);
+    filter: brightness(0.97);
   }
   .btn-ghost {
     @apply btn border;
@@ -95,6 +96,51 @@ body {
 
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize;
+  }
+  .badge-ok {
+    @apply badge;
+    background: var(--success-soft);
+    color: var(--success);
+  }
+  .badge-warn {
+    @apply badge;
+    background: var(--warning-soft);
+    color: #a15c07;
+  }
+  .badge-danger {
+    @apply badge;
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .badge-neutral {
+    @apply badge;
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  /* Inline messages */
+  .alert {
+    @apply rounded-xl px-4 py-3 text-sm font-medium;
+  }
+  .alert-error {
+    @apply alert;
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+  .alert-warn {
+    @apply alert;
+    background: var(--warning-soft);
+    color: #8a4f06;
+  }
+  .alert-ok {
+    @apply alert;
+    background: var(--success-soft);
+    color: var(--success);
+  }
+
+  .link {
+    @apply font-semibold;
+    color: var(--brand);
   }
 
   /* Sidebar / nav */

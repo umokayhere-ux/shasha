@@ -137,7 +137,7 @@ export function SubaccountManager({
   return (
     <div>
       {!paystackConfigured && (
-        <p className="mb-4 rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900">
+        <p className="alert-warn mb-4">
           Paystack is not configured on this deployment. You can still link a subaccount you
           created in the Paystack dashboard — creating a new one from here needs
           PAYSTACK_SECRET_KEY.
@@ -145,12 +145,12 @@ export function SubaccountManager({
       )}
 
       {error && (
-        <p role="alert" className="mb-4 rounded-xl bg-rose-100 px-4 py-3 text-sm text-rose-800">
+        <p role="alert" className="alert-error mb-4">
           {error}
         </p>
       )}
       {notice && (
-        <p className="mb-4 rounded-xl bg-emerald-100 px-4 py-3 text-sm text-emerald-900">
+        <p className="alert-ok mb-4">
           {notice}
         </p>
       )}
@@ -326,7 +326,7 @@ export function SubaccountManager({
                     <td className="muted font-mono text-xs">{s.accountNumberMasked ?? "—"}</td>
                     <td>
                       <span
-                        className={`badge ${s.isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}
+                        className={`${s.isActive ? "badge-ok" : "badge-neutral"}`}
                       >
                         {s.isActive ? "active" : "inactive"}
                       </span>

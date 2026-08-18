@@ -52,7 +52,7 @@ export default async function AdminCustomersPage() {
                     <td>{c._count.orders}</td>
                     <td>{formatMoney(c.wallet?.balance ?? 0)}</td>
                     <td>
-                      <span className={`badge ${c.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>
+                      <span className={`${c.status === "ACTIVE" ? "badge-ok" : "badge-danger"}`}>
                         {c.status.toLowerCase()}
                       </span>
                     </td>

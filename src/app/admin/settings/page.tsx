@@ -33,7 +33,7 @@ export default async function AdminSettingsPage() {
           {integrations.map(([label, configured]) => (
             <li key={label} className="flex items-center justify-between py-3 text-sm">
               <span>{label}</span>
-              <span className={`badge ${configured ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
+              <span className={`${configured ? "badge-ok" : "badge-warn"}`}>
                 {configured ? "configured" : "not set"}
               </span>
             </li>

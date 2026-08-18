@@ -76,7 +76,7 @@ export function BundleManager({
   return (
     <div>
       {error && (
-        <p role="alert" className="mb-4 rounded-lg bg-rose-100 px-3 py-2 text-sm text-rose-800">
+        <p role="alert" className="alert-error mb-4">
           {error}
         </p>
       )}
@@ -146,14 +146,14 @@ export function BundleManager({
                 <td className="py-2">{b.costPriceLabel}</td>
                 <td className="py-2 font-semibold text-emerald-600">{b.marginLabel}</td>
                 <td className="py-2">
-                  <span className={`badge ${b.isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"}`}>
+                  <span className={`${b.isActive ? "badge-ok" : "badge-neutral"}`}>
                     {b.isActive ? "active" : "inactive"}
                   </span>
                 </td>
                 <td className="py-2 text-right">
                   <button
                     onClick={() => setEditing(editing === b.publicId ? null : b.publicId)}
-                    className="text-sm font-semibold text-brand-600"
+                    className="link text-sm"
                   >
                     {editing === b.publicId ? "Close" : "Edit price"}
                   </button>

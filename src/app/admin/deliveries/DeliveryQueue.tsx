@@ -58,7 +58,7 @@ export function DeliveryQueue({ items }: { items: Item[] }) {
   return (
     <div>
       {error && (
-        <p role="alert" className="mb-4 rounded-xl bg-rose-100 px-4 py-3 text-sm text-rose-800">
+        <p role="alert" className="alert-error mb-4">
           {error}
         </p>
       )}
@@ -81,7 +81,7 @@ export function DeliveryQueue({ items }: { items: Item[] }) {
               <div className="text-right">
                 <p className="text-lg font-bold">{formatMoney(item.amount)}</p>
                 <span
-                  className={`badge mt-1 ${item.status === "FAILED" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-900"}`}
+                  className={`mt-1 ${item.status === "FAILED" ? "badge-danger" : "badge-warn"}`}
                 >
                   {item.status.toLowerCase()}
                 </span>
