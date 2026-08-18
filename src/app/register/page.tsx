@@ -48,7 +48,7 @@ export default function RegisterPage() {
       panelCtaLabel="Sign in"
       panelCtaHref="/login"
     >
-      <form onSubmit={onSubmit} className="mt-8 space-y-3.5">
+      <form onSubmit={onSubmit} className="mt-5 space-y-2.5 md:mt-7 md:space-y-3.5">
         <label className="sr-only" htmlFor="name">
           Full name
         </label>
@@ -110,7 +110,7 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      <p className="muted mt-6 text-center text-sm">
+      <p className="muted mt-4 text-center text-sm md:mt-6">
         Already registered?{" "}
         <Link href="/login" className="font-bold" style={{ color: "var(--cust-deep)" }}>
           log in

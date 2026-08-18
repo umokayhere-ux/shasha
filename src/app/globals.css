@@ -167,7 +167,7 @@ body {
   }
   /* Mint field, matching the reference: no border, soft green fill. */
   .input-mint {
-    @apply w-full rounded-full px-5 py-3.5 text-base outline-none transition;
+    @apply w-full rounded-full px-5 py-3 text-base outline-none transition md:py-3.5;
     background: #d6ecdf;
     color: #0b3b2c;
     border: 1px solid transparent;
@@ -180,7 +180,7 @@ body {
     background: #cfe8da;
   }
   .btn-pill {
-    @apply inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 text-sm font-bold uppercase tracking-wider transition active:scale-[0.98] disabled:opacity-60;
+    @apply inline-flex min-h-11 w-full items-center justify-center rounded-full px-6 text-sm font-bold uppercase tracking-wider transition active:scale-[0.98] disabled:opacity-60 md:min-h-12;
   }
 
   /* Sidebar / nav */

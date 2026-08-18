@@ -42,7 +42,7 @@ export default function LoginPage() {
       panelCtaLabel="Create account"
       panelCtaHref="/register"
     >
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <form onSubmit={onSubmit} className="mt-5 space-y-3 md:mt-7 md:space-y-4">
         <div>
           <label className="sr-only" htmlFor="email">
             Email
@@ -89,7 +89,7 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="muted mt-6 text-center text-sm">
+      <p className="muted mt-4 text-center text-sm md:mt-6">
         Don&apos;t have an account?{" "}
         <Link href="/register" className="font-bold" style={{ color: "var(--cust-deep)" }}>
           sign up
