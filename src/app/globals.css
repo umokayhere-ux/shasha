@@ -143,6 +143,46 @@ body {
     color: var(--brand);
   }
 
+  /* Auth screens: emerald panel + white form panel */
+  .auth-shell {
+    @apply mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem];
+    background: var(--surface);
+    box-shadow: 0 24px 60px rgba(2, 32, 22, 0.22);
+  }
+  .auth-panel {
+    background: linear-gradient(150deg, #0b6b4f 0%, var(--cust-deep) 55%, #03362a 100%);
+    color: #ffffff;
+  }
+  /* The sweeping curve: a deep corner radius on the edge facing the form. */
+  .auth-curve {
+    border-bottom-right-radius: 55% 22%;
+    border-bottom-left-radius: 55% 22%;
+  }
+  @screen md {
+    .auth-curve {
+      border-radius: 0;
+      border-top-right-radius: 28% 60%;
+      border-bottom-right-radius: 28% 60%;
+    }
+  }
+  /* Mint field, matching the reference: no border, soft green fill. */
+  .input-mint {
+    @apply w-full rounded-full px-5 py-3.5 text-base outline-none transition;
+    background: #d6ecdf;
+    color: #0b3b2c;
+    border: 1px solid transparent;
+  }
+  .input-mint::placeholder {
+    color: #5c8a76;
+  }
+  .input-mint:focus {
+    border-color: var(--cust-deep);
+    background: #cfe8da;
+  }
+  .btn-pill {
+    @apply inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 text-sm font-bold uppercase tracking-wider transition active:scale-[0.98] disabled:opacity-60;
+  }
+
   /* Sidebar / nav */
   .nav-link {
     @apply flex items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition;

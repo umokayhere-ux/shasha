@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BUSINESS_NAME, BUSINESS_TAGLINE } from "@/lib/branding";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,43 +34,73 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-extrabold tracking-tight">{BUSINESS_NAME}</h1>
-        <p className="muted mt-1 text-sm">{BUSINESS_TAGLINE}</p>
-      </div>
-      <div className="card">
-        <h2 className="text-xl font-bold">Welcome back</h2>
-        <p className="muted mt-1 text-sm">Sign in to buy data and track your orders.</p>
+    <AuthShell
+      heading="welcome"
+      subheading="Log in to your account to continue"
+      panelTitle="Welcome Back!"
+      panelBody="To stay connected with us, please log in with your personal info."
+      panelCtaLabel="Create account"
+      panelCtaHref="/register"
+    >
+      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+        <div>
+          <label className="sr-only" htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="Email"
+            className="input-mint"
+          />
+        </div>
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="label" htmlFor="email">Email</label>
-            <input id="email" name="email" type="email" required autoComplete="email" className="input" />
-          </div>
-          <div>
-            <label className="label" htmlFor="password">Password</label>
-            <input id="password" name="password" type="password" required autoComplete="current-password" className="input" />
-          </div>
+        <div>
+          <label className="sr-only" htmlFor="password">
+            Password
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="Password"
+            className="input-mint"
+          />
+        </div>
 
-          {error && (
-            <p role="alert" className="alert-error">
-              {error}
-            </p>
-          )}
-
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-
-        <p className="muted mt-5 text-center text-sm">
-          No account?{" "}
-          <Link href="/register" className="font-semibold" style={{ color: "var(--brand)" }}>
-            Create one
+        <p className="text-center">
+          <Link href="/forgot-password" className="muted text-xs hover:underline">
+            Forgot your password?
           </Link>
         </p>
-      </div>
-    </main>
+
+        {error && (
+          <p role="alert" className="alert-error text-center">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-pill"
+          style={{ background: "var(--cust-deep)", color: "#ffffff" }}
+        >
+          {loading ? "Signing in…" : "Log in"}
+        </button>
+      </form>
+
+      <p className="muted mt-6 text-center text-sm">
+        Don&apos;t have an account?{" "}
+        <Link href="/register" className="font-bold" style={{ color: "var(--cust-deep)" }}>
+          sign up
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

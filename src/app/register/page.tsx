@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BUSINESS_NAME } from "@/lib/branding";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -40,51 +40,82 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-extrabold tracking-tight">{BUSINESS_NAME}</h1>
-        <p className="muted mt-1 text-sm">Create an account to start buying data.</p>
-      </div>
-      <div className="card">
-        <h2 className="text-xl font-bold">Create your account</h2>
+    <AuthShell
+      heading="join us"
+      subheading="Create an account to start buying data"
+      panelTitle="Hello there!"
+      panelBody="Already registered? Sign in and pick up right where you left off."
+      panelCtaLabel="Sign in"
+      panelCtaHref="/login"
+    >
+      <form onSubmit={onSubmit} className="mt-8 space-y-3.5">
+        <label className="sr-only" htmlFor="name">
+          Full name
+        </label>
+        <input id="name" name="name" required placeholder="Full name" className="input-mint" />
 
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="label" htmlFor="name">Full name</label>
-            <input id="name" name="name" required className="input" />
-          </div>
-          <div>
-            <label className="label" htmlFor="email">Email</label>
-            <input id="email" name="email" type="email" required className="input" />
-          </div>
-          <div>
-            <label className="label" htmlFor="phone">Phone number</label>
-            <input id="phone" name="phone" inputMode="tel" required placeholder="0XXXXXXXXX" className="input" />
-          </div>
-          <div>
-            <label className="label" htmlFor="password">Password</label>
-            <input id="password" name="password" type="password" required minLength={10} className="input" />
-            <p className="muted mt-1 text-xs">At least 10 characters, with a letter and a number.</p>
-          </div>
+        <label className="sr-only" htmlFor="email">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          placeholder="Email"
+          className="input-mint"
+        />
 
-          {error && (
-            <p role="alert" className="alert-error">
-              {error}
-            </p>
-          )}
+        <label className="sr-only" htmlFor="phone">
+          Phone number
+        </label>
+        <input
+          id="phone"
+          name="phone"
+          inputMode="tel"
+          required
+          placeholder="Phone number (0XXXXXXXXX)"
+          className="input-mint"
+        />
 
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? "Creating account…" : "Create account"}
-          </button>
-        </form>
-
-        <p className="muted mt-4 text-center text-sm">
-          Already registered?{" "}
-          <Link href="/login" className="font-semibold" style={{ color: "var(--brand)" }}>
-            Sign in
-          </Link>
+        <label className="sr-only" htmlFor="password">
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          minLength={10}
+          placeholder="Password"
+          className="input-mint"
+        />
+        <p className="muted text-center text-[11px]">
+          At least 10 characters, with a letter and a number.
         </p>
-      </div>
-    </main>
+
+        {error && (
+          <p role="alert" className="alert-error text-center">
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-pill"
+          style={{ background: "var(--cust-deep)", color: "#ffffff" }}
+        >
+          {loading ? "Creating account…" : "Sign up"}
+        </button>
+      </form>
+
+      <p className="muted mt-6 text-center text-sm">
+        Already registered?{" "}
+        <Link href="/login" className="font-bold" style={{ color: "var(--cust-deep)" }}>
+          log in
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
