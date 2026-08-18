@@ -91,7 +91,7 @@ export default function RegisterPage() {
           className="input-mint"
         />
         <p className="muted text-center text-[11px]">
-          At least 10 characters, with a letter and a number.
+          At least 6 characters, with a number and a symbol.
         </p>
 
         {error && (

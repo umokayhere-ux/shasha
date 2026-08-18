@@ -121,7 +121,7 @@ export default function SetupPage() {
               autoComplete="new-password"
             />
             <p className="muted mt-1 text-xs">
-              At least 10 characters, with a letter and a number.
+              Admin password: at least 10 characters, with a letter and a number.
             </p>
           </div>
 

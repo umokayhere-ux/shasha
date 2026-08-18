@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   phoneSchema,
   passwordSchema,
+  adminPasswordSchema,
   createOrderSchema,
   networkLogoSchema,
 } from "@/lib/validation";
@@ -23,11 +24,31 @@ describe("phone validation", () => {
   });
 });
 
-describe("password policy", () => {
-  it("requires length plus a letter and a digit", () => {
-    expect(() => passwordSchema.parse("short1")).toThrow();
-    expect(() => passwordSchema.parse("alllettersonly")).toThrow();
-    expect(passwordSchema.parse("goodpassword1")).toBe("goodpassword1");
+describe("customer password policy", () => {
+  it("accepts 6 characters with a number and a symbol", () => {
+    expect(passwordSchema.parse("data1!")).toBe("data1!");
+  });
+
+  it("rejects anything shorter than six", () => {
+    expect(() => passwordSchema.parse("ab1!")).toThrow();
+  });
+
+  it("requires a number", () => {
+    expect(() => passwordSchema.parse("password!")).toThrow();
+  });
+
+  it("requires a symbol", () => {
+    expect(() => passwordSchema.parse("password1")).toThrow();
+  });
+});
+
+describe("admin password policy", () => {
+  it("stays at ten characters with a letter and a number", () => {
+    expect(adminPasswordSchema.parse("ownerpass12")).toBe("ownerpass12");
+  });
+
+  it("rejects a customer-strength password for an admin", () => {
+    expect(() => adminPasswordSchema.parse("data1!")).toThrow();
   });
 });
 

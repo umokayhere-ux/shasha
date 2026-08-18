@@ -10,9 +10,24 @@ export const phoneSchema = z
 
 export const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email address");
 
+/**
+ * Customer password policy: 6+ characters containing a number and a symbol.
+ *
+ * Short by usual standards — the symbol requirement and the login lockout after
+ * repeated failures are what carry the weight here. Admin accounts use the
+ * stricter rule below, since one of those controls prices and settlement.
+ */
 export const passwordSchema = z
   .string()
-  .min(10, "Password must be at least 10 characters")
+  .min(6, "Password must be at least 6 characters")
+  .max(128, "Password is too long")
+  .refine((v) => /\d/.test(v), "Include at least one number")
+  .refine((v) => /[^A-Za-z0-9]/.test(v), "Include at least one symbol, like ! or @");
+
+/** Admin credentials stay long: this account can change prices and payouts. */
+export const adminPasswordSchema = z
+  .string()
+  .min(10, "Admin password must be at least 10 characters")
   .max(128, "Password is too long")
   .refine((v) => /[a-zA-Z]/.test(v) && /\d/.test(v), "Include at least one letter and one number");
 

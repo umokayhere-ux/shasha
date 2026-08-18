@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { handler, ok, ApiError, parseBody } from "@/lib/api";
-import { emailSchema, passwordSchema } from "@/lib/validation";
+import { emailSchema, adminPasswordSchema } from "@/lib/validation";
 import { alreadyProvisioned, runSetup } from "@/lib/setup";
 import { recordAudit } from "@/lib/audit";
 
@@ -12,7 +12,7 @@ export const maxDuration = 60;
 const schema = z.object({
   token: z.string().min(8),
   email: emailSchema,
-  password: passwordSchema,
+  password: adminPasswordSchema,
   name: z.string().trim().min(2).max(80).default("Super Admin"),
 });
 
