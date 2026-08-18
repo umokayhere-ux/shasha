@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/money";
 import { networkTheme, type NetworkTheme } from "@/lib/network-theme";
 
@@ -35,6 +36,7 @@ export function BuyFlow({
     ? (networks.find((n) => n.slug === initialSlug.toLowerCase()) ?? null)
     : null;
 
+  const router = useRouter();
   const [step, setStep] = useState<Step>(preselected ? "bundle" : "network");
   const [network, setNetwork] = useState<Network | null>(preselected);
   const [bundle, setBundle] = useState<Bundle | null>(null);
@@ -159,7 +161,9 @@ export function BuyFlow({
         <header className="mb-6 flex items-center gap-3">
           <button
             onClick={() => {
-              if (step === "bundle") setStep("network");
+              // From the bundle list the customer has already chosen a network,
+              // so back means "leave", not "choose it again".
+              if (step === "bundle") router.push("/dashboard");
               else if (step === "recipient") setStep("bundle");
               else setStep("recipient");
             }}
