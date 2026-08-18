@@ -6,7 +6,12 @@ import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const dynamic = "force-dynamic";
 
-export default async function BuyPage() {
+export default async function BuyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ network?: string }>;
+}) {
+  const { network: requestedSlug } = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -32,5 +37,5 @@ export default async function BuyPage() {
     },
   });
 
-  return <BuyFlow networks={networks} />;
+  return <BuyFlow networks={networks} initialSlug={requestedSlug} />;
 }

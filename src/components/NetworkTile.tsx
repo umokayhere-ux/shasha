@@ -14,17 +14,19 @@ export function NetworkTile({
   name,
   slug,
   logoUrl,
-  href = "/buy",
+  href,
 }: {
   name: string;
   slug: string;
   logoUrl: string | null;
   href?: string;
 }) {
+  // Deep link straight to this network's bundles, skipping the picker.
+  const target = href ?? `/buy?network=${encodeURIComponent(slug)}`;
   const theme = networkTheme(slug);
 
   return (
-    <Link href={href} className="group flex flex-col items-center gap-2">
+    <Link href={target} className="group flex flex-col items-center gap-2">
       <span
         className="grid aspect-square w-full place-items-center overflow-hidden rounded-2xl transition active:scale-[0.97]"
         style={{
@@ -34,10 +36,10 @@ export function NetworkTile({
         }}
       >
         {logoUrl ? (
-          // object-cover fills the tile edge to edge; the logo's own background
-          // becomes the tile background, which is what makes it read as an icon.
+          // object-contain, not cover: a wordmark logo is wider than it is tall,
+          // and cover was slicing the ends off (Telecel lost its last letter).
           // eslint-disable-next-line @next/next/no-img-element -- stored inline as a data URI
-          <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+          <img src={logoUrl} alt="" className="h-full w-full object-contain" />
         ) : (
           <span
             aria-hidden

@@ -22,9 +22,21 @@ interface Network {
 
 type Step = "network" | "bundle" | "recipient" | "summary";
 
-export function BuyFlow({ networks }: { networks: Network[] }) {
-  const [step, setStep] = useState<Step>("network");
-  const [network, setNetwork] = useState<Network | null>(null);
+export function BuyFlow({
+  networks,
+  initialSlug,
+}: {
+  networks: Network[];
+  initialSlug?: string;
+}) {
+  // A tapped network tile deep-links here, so open straight on its bundles.
+  // An unknown slug falls back to the picker rather than an empty screen.
+  const preselected = initialSlug
+    ? (networks.find((n) => n.slug === initialSlug.toLowerCase()) ?? null)
+    : null;
+
+  const [step, setStep] = useState<Step>(preselected ? "bundle" : "network");
+  const [network, setNetwork] = useState<Network | null>(preselected);
   const [bundle, setBundle] = useState<Bundle | null>(null);
   const [phone, setPhone] = useState("");
   const [promoCode, setPromoCode] = useState("");
@@ -103,7 +115,7 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
                 >
                   {n.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- data URI
-                    <img src={n.logoUrl} alt="" className="h-full w-full object-cover" />
+                    <img src={n.logoUrl} alt="" className="h-full w-full object-contain" />
                   ) : (
                     <span
                       aria-hidden
@@ -163,7 +175,7 @@ export function BuyFlow({ networks }: { networks: Network[] }) {
           >
             {network.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- data URI
-              <img src={network.logoUrl} alt="" className="h-full w-full object-cover" />
+              <img src={network.logoUrl} alt="" className="h-full w-full object-contain" />
             ) : (
               <span aria-hidden className="text-[9px] font-black" style={{ color: theme.accent }}>
                 {theme.mark}
