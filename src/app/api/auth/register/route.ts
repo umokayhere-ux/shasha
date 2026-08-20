@@ -6,6 +6,9 @@ import { registerSchema } from "@/lib/validation";
 import { hashPassword } from "@/lib/crypto";
 import { createSession, clientIp } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { sendSms, smsTemplates } from "@/lib/sms";
+import { BUSINESS_NAME } from "@/lib/branding";
+import { runInBackground } from "@/lib/background";
 
 export const POST = handler(async (req: Request) => {
   const ip = clientIp(await headers()) ?? "unknown";
@@ -39,5 +42,12 @@ export const POST = handler(async (req: Request) => {
   });
 
   await createSession(user.id);
+
+  // Welcome SMS to the number they registered with. Sent after the response so
+  // a slow or failing gateway never blocks sign-up.
+  runInBackground("welcome-sms", () =>
+    sendSms(user.phone!, smsTemplates.welcome(user.name.split(" ")[0], BUSINESS_NAME)),
+  );
+
   return ok({ id: user.publicId, name: user.name, email: user.email, role: user.role }, 201);
 });

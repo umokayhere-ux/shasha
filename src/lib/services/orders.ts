@@ -16,6 +16,8 @@ import { applyPromotion } from "./promotions";
 import { notify } from "./notifications";
 import { runInBackground } from "../background";
 import { cleanUrl } from "../env";
+import { sendSms, smsTemplates } from "../sms";
+import { BUSINESS_NAME } from "../branding";
 
 export function generateReference(): string {
   return `SH-${Date.now().toString(36).toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`;
@@ -241,6 +243,24 @@ export async function verifyAndSettle(reference: string): Promise<{
     });
     // Queues the order for manual delivery and alerts the admins.
     runInBackground("queue-fulfillment", () => enqueueFulfillment(order.id));
+
+    // Tell the customer their money landed and delivery is coming. Uses the
+    // account phone, not the recipient: the buyer is who needs the receipt.
+    runInBackground("payment-sms", async () => {
+      const customer = await prisma.user.findUnique({
+        where: { id: order.customerId },
+        select: { phone: true },
+      });
+      if (!customer?.phone) return;
+      await sendSms(
+        customer.phone,
+        smsTemplates.paymentReceived(
+          `${order.networkNameSnapshot} ${order.bundleNameSnapshot}`,
+          order.recipientPhone,
+          BUSINESS_NAME,
+        ),
+      );
+    });
   }
 
   return { paid: true, order: settled };

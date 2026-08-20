@@ -2,6 +2,8 @@ import { FulfillmentStatus, OrderStatus, PaymentStatus, Role } from "@prisma/cli
 import { prisma } from "../db";
 import { notify } from "../services/notifications";
 import { formatMoney } from "../money";
+import { sendSms, smsTemplates } from "../sms";
+import { BUSINESS_NAME } from "../branding";
 
 /**
  * Manual fulfillment.
@@ -99,6 +101,22 @@ export async function markDelivered(publicId: string, adminId: string): Promise<
     body: `${fulfillment.order.bundleNameSnapshot} has been sent to ${fulfillment.order.recipientPhone}.`,
     metadata: { orderId: fulfillment.order.publicId },
   });
+
+  // Close the loop by SMS too — the customer may never open the app again.
+  const buyer = await prisma.user.findUnique({
+    where: { id: fulfillment.order.customerId },
+    select: { phone: true },
+  });
+  if (buyer?.phone) {
+    await sendSms(
+      buyer.phone,
+      smsTemplates.delivered(
+        `${fulfillment.order.networkNameSnapshot} ${fulfillment.order.bundleNameSnapshot}`,
+        fulfillment.order.recipientPhone,
+        BUSINESS_NAME,
+      ),
+    );
+  }
 
   return true;
 }

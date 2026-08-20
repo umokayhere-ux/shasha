@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { cleanUrl } from "@/lib/env";
+import { smsConfigured } from "@/lib/sms";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ export async function GET() {
         : null,
     paystackBaseUrl,
     cronSecret: Boolean(process.env.CRON_SECRET),
+    sms: smsConfigured(),
   };
 
   // Live reachability probe: this is the exact failure customers hit at
