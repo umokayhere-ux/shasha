@@ -1,43 +1,80 @@
 import { cleanSecret, cleanUrl } from "../env";
 
 /**
- * SMS delivery.
+ * SMS delivery via NkomoSMS.
  *
- * The provider is reached over plain HTTP with values from the environment, so
- * swapping Arkesel for Hubtel, mNotify or anything else is configuration rather
- * than a code change. If the field names your provider expects differ from the
- * defaults, `buildBody` below is the single place to adjust.
+ * POST https://app.nkomosms.com/api/v3/sms/send
+ *   Authorization: Bearer <token>, Accept: application/json
+ *   { recipient, sender_id, type: "plain", message }
  *
- * Sending is always best-effort: a failed SMS must never fail a registration or
- * a payment, so every error is logged and swallowed.
+ * Two details from their API that are easy to get wrong:
+ *  - A failure still comes back as HTTP 200 with {"status":"error"}, so the
+ *    body has to be inspected; res.ok alone would report success on a rejected
+ *    message.
+ *  - sender_id is capped at 11 characters for an alphanumeric sender, so the
+ *    business name is truncated rather than silently rejected by the gateway.
+ *
+ * Sending is best-effort throughout: a failed SMS must never fail a
+ * registration or a payment, so errors are logged and swallowed.
  */
+
+const DEFAULT_ENDPOINT = "https://app.nkomosms.com/api/v3/sms/send";
+const SENDER_ID_MAX = 11;
 
 export interface SmsResult {
   sent: boolean;
   reason?: string;
 }
 
-/** Most providers require international format; local 0XX numbers are rejected. */
-export function toInternational(phone: string, countryCode = "233"): string {
-  const digits = phone.replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) return digits;
-  if (digits.startsWith(countryCode)) return `+${digits}`;
-  if (digits.startsWith("0")) return `+${countryCode}${digits.slice(1)}`;
-  return `+${countryCode}${digits}`;
+/**
+ * NkomoSMS expects an international number without the leading plus
+ * (233593066582), matching the examples in their docs.
+ */
+export function formatNumber(phone: string, countryCode = "233"): string {
+  const digits = phone.replace(/[^\d+]/g, "").replace(/^\+/, "");
+  const national = digits.startsWith(countryCode)
+    ? digits.slice(countryCode.length)
+    : digits.replace(/^0/, "");
+  return `${countryCode}${national}`;
+}
+
+/** Alphanumeric sender IDs are limited to 11 characters. */
+export function senderId(): string {
+  const raw = process.env.SMS_SENDER_ID?.trim() || "Shasha";
+  return raw.slice(0, SENDER_ID_MAX);
 }
 
 export function smsConfigured(): boolean {
-  return Boolean(cleanSecret(process.env.SMS_API_KEY) && process.env.SMS_API_URL);
+  return Boolean(cleanSecret(process.env.SMS_API_KEY));
 }
 
-function buildBody(to: string, message: string): Record<string, unknown> {
-  const sender = process.env.SMS_SENDER_ID?.trim() || "Shasha";
+export interface SmsRequest {
+  url: string;
+  init: RequestInit;
+}
+
+/** Builds the provider call. Exported so tests can assert the shape. */
+export function buildRequest(rawPhone: string, message: string): SmsRequest {
+  const url = cleanUrl(process.env.SMS_API_URL, DEFAULT_ENDPOINT);
+  const key = cleanSecret(process.env.SMS_API_KEY) ?? "";
+
   return {
-    // Common field names across Ghanaian SMS gateways. Adjust here if yours
-    // expects something different.
-    sender,
-    to,
-    message,
+    url,
+    init: {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        recipient: formatNumber(rawPhone),
+        sender_id: senderId(),
+        type: "plain",
+        message,
+      }),
+      cache: "no-store",
+    },
   };
 }
 
@@ -52,32 +89,22 @@ export async function sendSms(rawPhone: string, message: string): Promise<SmsRes
     return { sent: false, reason: "SMS is not configured" };
   }
 
-  const url = cleanUrl(process.env.SMS_API_URL, "");
-  const key = cleanSecret(process.env.SMS_API_KEY)!;
-  const to = toInternational(rawPhone);
-
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Providers differ: some want a bearer token, others a bare api-key.
-        ...(process.env.SMS_AUTH_HEADER?.trim()
-          ? { [process.env.SMS_AUTH_HEADER.trim()]: key }
-          : { Authorization: `Bearer ${key}` }),
-      },
-      body: JSON.stringify(buildBody(to, message)),
-      cache: "no-store",
-    });
+    const { url, init } = buildRequest(rawPhone, message);
+    const res = await fetch(url, init);
+    const body = (await res.json().catch(() => null)) as
+      | { status?: string; message?: string }
+      | null;
 
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      console.error("[sms] provider rejected %s: %s %s", to, res.status, detail.slice(0, 200));
-      return { sent: false, reason: `Provider replied ${res.status}` };
+    // NkomoSMS reports rejections in the body, not the HTTP status.
+    if (!res.ok || body?.status !== "success") {
+      const reason = body?.message ?? `Provider replied ${res.status}`;
+      console.error("[sms] not sent: %s", reason);
+      return { sent: false, reason };
     }
     return { sent: true };
   } catch (err) {
-    console.error("[sms] send failed to %s", to, err);
+    console.error("[sms] send failed", err);
     return { sent: false, reason: "Could not reach the SMS provider" };
   }
 }
