@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe("number formatting", () => {
-  it("produces an international number with no plus, as NkomoSMS expects", () => {
+  it("produces an international number with no plus, as Arkesel expects", () => {
     expect(formatNumber("0593066582")).toBe("233593066582");
     expect(formatNumber("+233593066582")).toBe("233593066582");
     expect(formatNumber("233593066582")).toBe("233593066582");
@@ -47,23 +47,29 @@ describe("configuration", () => {
 });
 
 describe("request building", () => {
-  it("posts the documented JSON body to the NkomoSMS endpoint", () => {
+  it("posts the documented JSON body to the Arkesel v2 endpoint", () => {
     const { url, init } = buildRequest("0593066582", "Hello");
 
-    expect(url).toBe("https://app.nkomosms.com/api/v3/sms/send");
+    expect(url).toBe("https://sms.arkesel.com/api/v2/sms/send");
     expect(init.method).toBe("POST");
 
     const headers = init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer secret-key");
-    expect(headers.Accept).toBe("application/json");
+    // Arkesel wants a bare api-key header, not an Authorization bearer.
+    expect(headers["api-key"]).toBe("secret-key");
+    expect(headers.Authorization).toBeUndefined();
     expect(headers["Content-Type"]).toBe("application/json");
 
     expect(JSON.parse(init.body as string)).toEqual({
-      recipient: "233593066582",
-      sender_id: "Shasha",
-      type: "plain",
+      sender: "Shasha",
       message: "Hello",
+      recipients: ["233593066582"],
     });
+  });
+
+  it("sends recipients as an array even for one number", () => {
+    const { init } = buildRequest("0593066582", "Hi");
+    const body = JSON.parse(init.body as string) as { recipients: unknown };
+    expect(Array.isArray(body.recipients)).toBe(true);
   });
 
   it("honours an overridden endpoint", () => {

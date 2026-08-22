@@ -1,24 +1,28 @@
 import { cleanSecret, cleanUrl } from "../env";
 
 /**
- * SMS delivery via NkomoSMS.
+ * SMS delivery via Arkesel (SMS API v2).
  *
- * POST https://app.nkomosms.com/api/v3/sms/send
- *   Authorization: Bearer <token>, Accept: application/json
- *   { recipient, sender_id, type: "plain", message }
+ * POST https://sms.arkesel.com/api/v2/sms/send
+ *   api-key: <key>
+ *   { sender, message, recipients: ["233593066582"] }
  *
- * Two details from their API that are easy to get wrong:
- *  - A failure still comes back as HTTP 200 with {"status":"error"}, so the
- *    body has to be inspected; res.ok alone would report success on a rejected
- *    message.
- *  - sender_id is capped at 11 characters for an alphanumeric sender, so the
- *    business name is truncated rather than silently rejected by the gateway.
+ * Details from their API that are easy to get wrong:
+ *  - Auth is a bare `api-key` header, NOT `Authorization: Bearer`.
+ *  - `recipients` is an array even for a single number, and each number is
+ *    international with no leading plus (233593066582).
+ *  - A rejected send can still come back as HTTP 200 with
+ *    {"status":"error"} — or with a non-"success" code such as
+ *    "insufficient_balance" — so the body is inspected rather than res.ok
+ *    alone, which would report a rejection as a success.
+ *  - The alphanumeric sender is capped at 11 characters, so the configured
+ *    sender is truncated rather than being rejected by the gateway.
  *
  * Sending is best-effort throughout: a failed SMS must never fail a
  * registration or a payment, so errors are logged and swallowed.
  */
 
-const DEFAULT_ENDPOINT = "https://app.nkomosms.com/api/v3/sms/send";
+const DEFAULT_ENDPOINT = "https://sms.arkesel.com/api/v2/sms/send";
 const SENDER_ID_MAX = 11;
 
 export interface SmsResult {
@@ -27,7 +31,7 @@ export interface SmsResult {
 }
 
 /**
- * NkomoSMS expects an international number without the leading plus
+ * Arkesel expects an international number without the leading plus
  * (233593066582), matching the examples in their docs.
  */
 export function formatNumber(phone: string, countryCode = "233"): string {
@@ -63,15 +67,14 @@ export function buildRequest(rawPhone: string, message: string): SmsRequest {
     init: {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${key}`,
+        "api-key": key,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
       body: JSON.stringify({
-        recipient: formatNumber(rawPhone),
-        sender_id: senderId(),
-        type: "plain",
+        sender: senderId(),
         message,
+        recipients: [formatNumber(rawPhone)],
       }),
       cache: "no-store",
     },
@@ -96,9 +99,9 @@ export async function sendSms(rawPhone: string, message: string): Promise<SmsRes
       | { status?: string; message?: string }
       | null;
 
-    // NkomoSMS reports rejections in the body, not the HTTP status.
+    // Arkesel reports rejections in the body, not always in the HTTP status.
     if (!res.ok || body?.status !== "success") {
-      const reason = body?.message ?? `Provider replied ${res.status}`;
+      const reason = body?.message ?? body?.status ?? `Provider replied ${res.status}`;
       console.error("[sms] not sent: %s", reason);
       return { sent: false, reason };
     }
