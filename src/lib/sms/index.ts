@@ -95,14 +95,22 @@ export async function sendSms(rawPhone: string, message: string): Promise<SmsRes
   try {
     const { url, init } = buildRequest(rawPhone, message);
     const res = await fetch(url, init);
-    const body = (await res.json().catch(() => null)) as
-      | { status?: string; message?: string }
-      | null;
+    const raw = await res.text();
+    const body = (() => {
+      try {
+        return JSON.parse(raw) as { status?: string; message?: string };
+      } catch {
+        return null;
+      }
+    })();
 
     // Arkesel reports rejections in the body, not always in the HTTP status.
     if (!res.ok || body?.status !== "success") {
       const reason = body?.message ?? body?.status ?? `Provider replied ${res.status}`;
-      console.error("[sms] not sent: %s", reason);
+      // The raw body is logged too: if the provider ever answers in a shape
+      // this adapter does not expect, the parsed reason alone is useless for
+      // working out what actually happened.
+      console.error("[sms] not sent to %s: %s | raw: %s", formatNumber(rawPhone), reason, raw.slice(0, 300));
       return { sent: false, reason };
     }
     return { sent: true };
