@@ -43,7 +43,9 @@ export const GET = handler(async () => {
   ] = await Promise.all([
     prisma.user.count({ where: { role: Role.CUSTOMER, ...NOT_DELETED } }),
     prisma.user.count({ where: { role: Role.CUSTOMER, status: UserStatus.ACTIVE, ...NOT_DELETED } }),
-    prisma.user.count({ where: { role: Role.CUSTOMER, status: UserStatus.SUSPENDED } }),
+    prisma.user.count({
+      where: { role: Role.CUSTOMER, status: UserStatus.SUSPENDED, ...NOT_DELETED },
+    }),
     prisma.order.count(),
     prisma.order.count({ where: { createdAt: { gte: today } } }),
     prisma.order.count({ where: { status: OrderStatus.SUCCESSFUL } }),

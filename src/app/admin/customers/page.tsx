@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 import { PageHeader, EmptyState } from "@/components/PageHeader";
+import { DeleteCustomerButton } from "@/components/DeleteCustomerButton";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCustomersPage() {
   const customers = await prisma.user.findMany({
-    where: { role: "CUSTOMER" },
+    where: { role: "CUSTOMER", ...NOT_DELETED },
     orderBy: { createdAt: "desc" },
     take: 100,
     // passwordHash is never selected.
@@ -31,7 +33,7 @@ export default async function AdminCustomersPage() {
           <EmptyState message="No customers have registered yet." />
         ) : (
           <div className="table-wrap">
-            <table className="table min-w-[720px]">
+            <table className="table min-w-[800px]">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -41,6 +43,7 @@ export default async function AdminCustomersPage() {
                   <th>Wallet</th>
                   <th>Status</th>
                   <th>Joined</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -58,6 +61,13 @@ export default async function AdminCustomersPage() {
                     </td>
                     <td className="muted text-xs">
                       {new Date(c.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="text-right">
+                      <DeleteCustomerButton
+                        publicId={c.publicId}
+                        name={c.name}
+                        orderCount={c._count.orders}
+                      />
                     </td>
                   </tr>
                 ))}

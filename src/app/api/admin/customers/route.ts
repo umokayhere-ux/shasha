@@ -2,6 +2,7 @@ import { Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { handler, ok, parsePagination } from "@/lib/api";
 import { requireAdmin } from "@/lib/auth";
+import { NOT_DELETED } from "@/lib/not-deleted";
 
 export const GET = handler(async (req: Request) => {
   await requireAdmin();
@@ -9,17 +10,25 @@ export const GET = handler(async (req: Request) => {
   const { page, pageSize, skip, take } = parsePagination(url);
   const search = url.searchParams.get("q")?.trim();
 
+  // NOT_DELETED and the search filter both use OR, so they are combined under
+  // AND rather than spread into the same object, where one would overwrite the
+  // other and quietly widen the result set.
   const where: Prisma.UserWhereInput = {
     role: Role.CUSTOMER,
-    ...(search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-            { phone: { contains: search } },
-          ],
-        }
-      : {}),
+    AND: [
+      NOT_DELETED,
+      ...(search
+        ? [
+            {
+              OR: [
+                { name: { contains: search, mode: Prisma.QueryMode.insensitive } },
+                { email: { contains: search, mode: Prisma.QueryMode.insensitive } },
+                { phone: { contains: search } },
+              ],
+            },
+          ]
+        : []),
+    ],
   };
 
   const [customers, total] = await Promise.all([
