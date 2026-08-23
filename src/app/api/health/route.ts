@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { cleanUrl } from "@/lib/env";
-import { smsConfigured } from "@/lib/sms";
+import { smsConfigured, smsEndpoint, senderId, SMS_PROVIDER } from "@/lib/sms";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,6 +29,12 @@ export async function GET() {
     paystackBaseUrl,
     cronSecret: Boolean(process.env.CRON_SECRET),
     sms: smsConfigured(),
+    // Which adapter is actually deployed, and the two settings that decide
+    // whether a send is accepted. The sender ID is not a secret, and an
+    // unapproved one is the most common reason sends are rejected.
+    smsProvider: SMS_PROVIDER,
+    smsEndpoint: smsEndpoint(),
+    smsSenderId: senderId(),
   };
 
   // Live reachability probe: this is the exact failure customers hit at

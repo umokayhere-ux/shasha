@@ -22,6 +22,7 @@ import { cleanSecret, cleanUrl } from "../env";
  * registration or a payment, so errors are logged and swallowed.
  */
 
+export const SMS_PROVIDER = "arkesel";
 const DEFAULT_ENDPOINT = "https://sms.arkesel.com/api/v2/sms/send";
 const SENDER_ID_MAX = 11;
 
@@ -46,6 +47,11 @@ export function formatNumber(phone: string, countryCode = "233"): string {
 export function senderId(): string {
   const raw = process.env.SMS_SENDER_ID?.trim() || "Shasha";
   return raw.slice(0, SENDER_ID_MAX);
+}
+
+/** The endpoint actually in use, for diagnostics. Carries no secret. */
+export function smsEndpoint(): string {
+  return cleanUrl(process.env.SMS_API_URL, DEFAULT_ENDPOINT);
 }
 
 export function smsConfigured(): boolean {
