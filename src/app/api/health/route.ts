@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { cleanUrl } from "@/lib/env";
 import { smsConfigured, smsEndpoint, senderId, SMS_PROVIDER } from "@/lib/sms";
+import { normalizeWhatsApp } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +36,9 @@ export async function GET() {
     smsProvider: SMS_PROVIDER,
     smsEndpoint: smsEndpoint(),
     smsSenderId: senderId(),
+    // Complaints hand off to WhatsApp; an unset or malformed number disables
+    // the button rather than opening a chat with the wrong person.
+    supportWhatsApp: Boolean(normalizeWhatsApp(process.env.SUPPORT_WHATSAPP)),
   };
 
   // Live reachability probe: this is the exact failure customers hit at
@@ -111,6 +115,11 @@ export async function GET() {
   if (!config.appUrl) nextSteps.push("Set APP_URL to this deployment's URL (Paystack callbacks use it)");
   if (!config.paystackSecretKey) nextSteps.push("Set PAYSTACK_SECRET_KEY to accept payments");
   if (!config.cronSecret) nextSteps.push("Set CRON_SECRET so the retry job can run");
+  if (!config.supportWhatsApp) {
+    nextSteps.push(
+      "Set SUPPORT_WHATSAPP to your WhatsApp number with country code (e.g. 233XXXXXXXXX) to accept complaints",
+    );
+  }
 
   return Response.json(
     { ok: setupComplete, config, database, paystack, nextSteps },

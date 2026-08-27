@@ -119,6 +119,30 @@ export default async function CustomerDashboard() {
           </div>
         </section>
 
+        {/* Complaints entry point: deliberately above the fold of the list, so a
+            customer chasing an undelivered bundle finds it without scrolling. */}
+        <Link
+          href="/support"
+          className="card mb-5 flex items-center gap-3 no-underline"
+          style={{ color: "var(--text)" }}
+        >
+          <span
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full"
+            style={{ background: "var(--success-soft)", color: "var(--success)" }}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-3.9-.9L3 21l2-4.9A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">Problem with an order?</span>
+            <span className="muted block text-xs">Make a complaint on WhatsApp</span>
+          </span>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ color: "var(--muted)" }}>
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </Link>
+
         <section className="card">
           <div className="mb-1 flex items-center justify-between">
             <h2 className="text-sm font-bold">Recent purchases</h2>

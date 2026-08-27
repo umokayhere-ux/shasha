@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
@@ -75,9 +76,12 @@ export default async function AccountPage() {
           <SignOutButton />
         </div>
 
-        <p className="muted mt-6 text-center text-xs">
-          {BUSINESS_NAME} · Need help? {process.env.SUPPORT_EMAIL ?? "support@example.com"}
+        <p className="mt-6 text-center text-xs">
+          <Link href="/support" className="link">
+            Help &amp; complaints
+          </Link>
         </p>
+        <p className="muted mt-2 text-center text-xs">{BUSINESS_NAME}</p>
       </main>
 
       <CustomerTabBar />
